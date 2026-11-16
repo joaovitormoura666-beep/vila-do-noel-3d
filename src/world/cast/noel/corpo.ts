@@ -268,7 +268,7 @@ export function esculpir(esq: Esqueleto): PartesNoel {
       tronco(th, y, out, -0.004 + 0.034 * perfilFaixa(u) * fofo);
     },
     pesos: (_u, _v, p) => pesosTronco(p),
-    cor: (u, _v, p) => cinza((0.84 + 0.16 * Math.sin(Math.PI * u)) * oclusao(p, 'tronco', 0.6)),
+    cor: (u, _v, p) => cinza((0.9 + 0.1 * Math.sin(Math.PI * u)) * oclusao(p, 'tronco', 0.4)),
     // o pelo some nas bordas (onde a faixa entra no veludo): nada de pontas soltas sobre o vermelho
     pelo: (u) => [0.03 * suave(0.05, 0.45, perfilFaixa(u)), 1, 0.1],
     orientar: 1,
@@ -292,7 +292,7 @@ export function esculpir(esq: Esqueleto): PartesNoel {
         out.addScaledVector(n, k);
       },
       pesos: (_u, v, p) => pesosSaia(misturar(0.12, 0.92, v), p),
-      cor: (u, _v, p) => cinza((0.84 + 0.16 * Math.sin(Math.PI * u)) * oclusao(p, 'tronco', 0.3)),
+      cor: (u, _v, p) => cinza((0.9 + 0.1 * Math.sin(Math.PI * u)) * oclusao(p, 'tronco', 0.2)),
       pelo: (u) => [0.03 * suave(0.05, 0.45, perfilFaixa(u)), 1, 0.15],
       orientar: 1,
     });
@@ -334,7 +334,7 @@ export function esculpir(esq: Esqueleto): PartesNoel {
           },
         )(u, (t0 + (t1 - t0) * v + 1) % 1, out),
       pesos: (_u, _v, p) => pesosSaia(1, p),
-      cor: (u, _v, p) => cinza((0.8 + 0.2 * suave(-0.6, 0.8, Math.cos(u * Math.PI * 2))) * oclusao(p, 'tronco', 0.25)),
+      cor: (u, _v, p) => cinza((0.88 + 0.12 * suave(-0.6, 0.8, Math.cos(u * Math.PI * 2))) * oclusao(p, 'tronco', 0.18)),
       // sem pelo na parte que encosta nas coxas e no veludo (as cascas sairiam do outro lado)
       pelo: (u, v, p) => {
         bainha((t0 + (t1 - t0) * v) * Math.PI * 2, Q);
@@ -374,9 +374,22 @@ export function esculpir(esq: Esqueleto): PartesNoel {
         }
       }
     }
+    // onde fica a barra felpuda da calça: uns 9 cm acima do tornozelo, para o cano da bota aparecer embaixo
+    const ctr = V(0, 0, 0);
+    const tg = V(0, 0, 0);
+    let vCano = 0.9;
+    for (let i = 0; i <= 100; i++) {
+      cam.em(i / 100, ctr);
+      if (ctr.y < pr.tornozelo.y + 0.09) {
+        vCano = i / 100;
+        break;
+      }
+    }
     const raioPerna = (u: number, v: number): readonly [number, number] => {
       // a calça é folgada: afina pouco no joelho e volta a abrir sobre a bota
-      const r = v < vJoelho ? misturar(CORPO.coxa, 0.155, suave(0, vJoelho, v)) : misturar(0.152, CORPO.canela, suave(vJoelho, 1, v)) + 0.006 * suave(0.8, 1, v);
+      const r0 = v < vJoelho ? misturar(CORPO.coxa, 0.155, suave(0, vJoelho, v)) : misturar(0.152, CORPO.canela, suave(vJoelho, 1, v)) + 0.006 * suave(0.8, 1, v);
+      // abaixo da barra felpuda a calça afina e some dentro do cano da bota (que é o que aparece ali)
+      const r = misturar(r0, 0.06, suave(vCano - 0.005, vCano + 0.04, v));
       // rugas do tecido atrás do joelho e franzido sobre a bota
       const ang = u * Math.PI * 2;
       const atras = Math.max(0, -Math.cos(ang));
@@ -405,16 +418,6 @@ export function esculpir(esq: Esqueleto): PartesNoel {
     });
 
     // barra felpuda da calça, na altura do cano da bota (cobre o encontro da calça com a bota)
-    const ctr = V(0, 0, 0);
-    const tg = V(0, 0, 0);
-    let vCano = 0.9;
-    for (let i = 0; i <= 100; i++) {
-      cam.em(i / 100, ctr);
-      if (ctr.y < pr.tornozelo.y + 0.06) {
-        vCano = i / 100;
-        break;
-      }
-    }
     cam.em(vCano, ctr, tg);
     const ex = V(1, 0, 0).sub(tg.clone().multiplyScalar(tg.x)).normalize();
     const ez = new THREE.Vector3().crossVectors(ex, tg).normalize();
@@ -433,19 +436,19 @@ export function esculpir(esq: Esqueleto): PartesNoel {
         },
       ),
       pesos: () => um(`canela${L}`),
-      cor: (u) => cinza(0.8 + 0.2 * suave(-0.6, 0.8, Math.cos(u * Math.PI * 2))),
+      cor: (u) => cinza(0.88 + 0.12 * suave(-0.6, 0.8, Math.cos(u * Math.PI * 2))),
       pelo: (u) => [0.032 * suave(-0.25, 0.45, Math.cos(u * Math.PI * 2)), 1, 0.4 + lado * 0.1],
     });
 
     /* ------------------------------------------------------------- botas */
-    // couro marrom muito escuro, acetinado; bico redondo de tamanho normal; sola separada com salto
+    // couro marrom muito escuro, acetinado; bico redondo e comprido (bota de Noel, não sapato); sola separada com salto
     const tz = pr.tornozelo;
     const x = tz.x;
     const Y0 = PUFE.altura;
     const corBota = lin(CORES.bota);
     const corSola = lin(CORES.sola);
     const camBota = new Caminho(
-      [V(x, tz.y + 0.13, tz.z - 0.02), V(x, tz.y + 0.02, tz.z - 0.01), V(x + lado * 0.004, Y0 + 0.06, tz.z + 0.05), V(x + lado * 0.01, Y0 + 0.052, tz.z + 0.15), V(x + lado * 0.014, Y0 + 0.055, tz.z + 0.215)],
+      [V(x, tz.y + 0.12, tz.z - 0.02), V(x, tz.y + 0.02, tz.z - 0.01), V(x + lado * 0.004, Y0 + 0.06, tz.z + 0.06), V(x + lado * 0.01, Y0 + 0.052, tz.z + 0.185), V(x + lado * 0.014, Y0 + 0.056, tz.z + 0.27)],
       { amostras: 64, lateral: V(1, 0, 0) },
     );
     couro.adicionar({
@@ -482,9 +485,9 @@ export function esculpir(esq: Esqueleto): PartesNoel {
     });
     // sola com salto: laje de cantos redondos, um pouco maior que o pé, com borda chanfrada
     {
-      const cz = tz.z + 0.075;
-      const a = 0.083;
-      const b = 0.17;
+      const cz = tz.z + 0.1;
+      const a = 0.085;
+      const b = 0.205;
       const cx = x + lado * 0.008;
       const espessura = (zz: number) => (zz < tz.z - 0.005 ? 0.034 : 0.022);
       const contorno = (t: number, o: THREE.Vector3) => {
@@ -591,7 +594,7 @@ export function esculpir(esq: Esqueleto): PartesNoel {
         },
       ),
       pesos: () => um(`antebraco${L}`),
-      cor: (u) => cinza(0.8 + 0.2 * suave(-0.6, 0.8, Math.cos(u * Math.PI * 2))),
+      cor: (u) => cinza(0.88 + 0.12 * suave(-0.6, 0.8, Math.cos(u * Math.PI * 2))),
       pelo: (u) => [0.028 * suave(-0.25, 0.45, Math.cos(u * Math.PI * 2)), 1, 0.5 + lado * 0.1],
     });
 
@@ -904,14 +907,14 @@ export function esculpir(esq: Esqueleto): PartesNoel {
   mechas.adicionar({
     nu: 20,
     nv: 14,
-    ponto: elipsoide(C(0, -0.19, 0.1), V(0.215, 0.15, 0.125), {
+    ponto: elipsoide(C(0, -0.19, 0.1), V(0.215, 0.18, 0.125), {
       deformar: (d) => {
         const ponta = Math.max(0, -d.y - 0.3);
         return 1 - 0.25 * ponta * Math.abs(d.x) * 2 + 0.06 * fbm3(d.x * 3, d.y * 3, d.z * 3, 2, 5);
       },
     }),
     pesos: (_u, _v, p) => pesoBarba(p.y + 0.05)(0.5, p),
-    cor: () => cinza(0.62),
+    cor: () => cinza(0.72),
     uv: (u, v) => [u * 1.6, v * 0.5],
   });
   // costeletas: descem da aba do gorro pela lateral do rosto, À FRENTE das orelhas (que aparecem)
@@ -1052,7 +1055,7 @@ export function esculpir(esq: Esqueleto): PartesNoel {
           },
         )(u, (t0 + (t1 - t0) * v + 1) % 1, out),
       pesos: () => um('cabeca'),
-      cor: (u) => cinza(0.82 + 0.18 * suave(-0.6, 0.8, Math.cos(u * Math.PI * 2))),
+      cor: (u) => cinza(0.88 + 0.12 * suave(-0.6, 0.8, Math.cos(u * Math.PI * 2))),
       pelo: (u) => [0.028 * suave(-0.25, 0.45, Math.cos(u * Math.PI * 2)), 1, 0.7],
     });
   aba(-0.36, 0.36, false, 32);

@@ -93,7 +93,9 @@ export const CORES = {
   /** Carmim profundo: a sombra vai quase a vinho; o brilho do veludo fica só nas bordas (sheen). */
   veludo: '#7a0912',
   veludoBrilho: '#e85466',
-  pelo: '#ece6dc',
+  pelo: '#f4efe6',
+  /** Mechas da barba, do bigode e das sobrancelhas: um pouco mais claras que a pelúcia. */
+  barba: '#f6f2ea',
   pele: '#f4bfa0',
   bochecha: '#e8656a',
   nariz: '#f07a78',

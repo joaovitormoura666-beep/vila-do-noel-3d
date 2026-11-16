@@ -1,14 +1,17 @@
 /**
  * REGRAS DAS ETIQUETAS DE NOME (lógica pura, em pixels de projeto 1080x1920, sem tela nem DOM).
  *
- * - Só quem está sendo atendido e os primeiros da fila (ETIQUETAS.maxFila) têm etiqueta; o resto da fila aparece
- *   num selo "+N".
- * - Cada etiqueta tenta alguns lugares em volta da cabeça (acima, acima e para o lado, um degrau mais alto) e, por
- *   último, abaixo dos pés. Um lugar só vale se ficar inteiro dentro da área de jogo, não cobrir nenhuma área
- *   proibida (rosto do Noel, saco, área da entrega, balão, presente) e não encostar em outra etiqueta.
+ * - Só os primeiros da fila (ETIQUETAS.maxFila) têm etiqueta; quem está sendo atendido aparece no HUD (pílula
+ *   "Agora") e o resto da fila só no contador.
+ * - Cada etiqueta tenta alguns lugares em volta da cabeça (acima, acima e para o lado, um degrau mais alto). Um
+ *   lugar só vale se ficar inteiro dentro da área de jogo, não cobrir nenhuma área proibida (rosto e corpo do Noel,
+ *   saco, área da entrega, balão, caixa, presente, árvore) e não encostar em outra etiqueta.
+ * - A etiqueta nunca se descola de quem ela nomeia: lugar a mais de ETIQUETAS.longeMax px (na vertical) ou
+ *   ETIQUETAS.ladoMax px (na horizontal) da cabeça não vale. Nada de "abaixo dos pés": na fila isso cai em cima do
+ *   gorro de quem está atrás, e a live leria o nome errado.
  * - Entre os lugares válidos ganha o mais barato (perto da cabeça, sem degrau), com preferência pelo lugar do
  *   quadro anterior (para a etiqueta não ficar pulando enquanto a fila anda).
- * - Sem lugar válido, a etiqueta some (e a pessoa passa a contar no "+N").
+ * - Sem lugar válido, a etiqueta some (a pessoa continua contada no contador do HUD).
  *
  * O posicionador reaproveita os próprios objetos: nada é alocado por quadro depois de aquecido.
  */
@@ -28,30 +31,35 @@ export const ETIQUETAS = {
   /** Folga mínima entre duas etiquetas (px). */
   entre: 6,
   /** Área de jogo da tela da live (fora dela ficam o título e o chat do TikTok). */
-  area: { l: 14, t: 440, r: 1066, b: 1476 } as Retangulo,
+  area: { l: 8, t: 440, r: 1074, b: 1476 } as Retangulo,
   /** Bônus para continuar no mesmo lugar do quadro anterior. */
   ficar: 60,
+  /** Distância máxima (px) entre a base da etiqueta e o topo da cabeça, na vertical. */
+  longeMax: 90,
+  /** Deslocamento máximo (px) do centro da etiqueta em relação à cabeça, na horizontal. */
+  ladoMax: 160,
 };
 
-/** Lugares tentados, em ordem de preferência: deslocamento em x (px), degraus para cima, e se é abaixo dos pés. */
+/**
+ * Lugares tentados, em ordem de preferência: deslocamento em x (px), degraus para cima, e se é abaixo dos pés
+ * (`abaixo` fica no tipo para quem quiser usar em outra tela; na fila do jogo 3D não há nenhum, veja o cabeçalho).
+ */
 export const OPCOES: ReadonlyArray<{ dx: number; degrau: number; abaixo: boolean; custo: number }> = [
   { dx: 0, degrau: 0, abaixo: false, custo: 0 },
-  { dx: -70, degrau: 0, abaixo: false, custo: 30 },
-  { dx: 70, degrau: 0, abaixo: false, custo: 30 },
-  { dx: -140, degrau: 0, abaixo: false, custo: 70 },
-  { dx: 140, degrau: 0, abaixo: false, custo: 70 },
-  { dx: 0, degrau: 1, abaixo: false, custo: 90 },
-  { dx: -90, degrau: 1, abaixo: false, custo: 120 },
-  { dx: 90, degrau: 1, abaixo: false, custo: 120 },
-  { dx: -210, degrau: 0, abaixo: false, custo: 140 },
-  { dx: 210, degrau: 0, abaixo: false, custo: 140 },
-  { dx: 0, degrau: 0, abaixo: true, custo: 160 },
-  { dx: -80, degrau: 0, abaixo: true, custo: 190 },
-  { dx: 80, degrau: 0, abaixo: true, custo: 190 },
-  { dx: -170, degrau: 1, abaixo: false, custo: 200 },
-  { dx: 170, degrau: 1, abaixo: false, custo: 200 },
-  { dx: 0, degrau: 2, abaixo: false, custo: 230 },
-];
+  { dx: -30, degrau: 0, abaixo: false, custo: 15 },
+  { dx: 30, degrau: 0, abaixo: false, custo: 15 },
+  { dx: -60, degrau: 0, abaixo: false, custo: 30 },
+  { dx: 60, degrau: 0, abaixo: false, custo: 30 },
+  { dx: -100, degrau: 0, abaixo: false, custo: 60 },
+  { dx: 100, degrau: 0, abaixo: false, custo: 60 },
+  { dx: -140, degrau: 0, abaixo: false, custo: 90 },
+  { dx: 140, degrau: 0, abaixo: false, custo: 90 },
+  { dx: 0, degrau: 1, abaixo: false, custo: 100 },
+  { dx: -50, degrau: 1, abaixo: false, custo: 120 },
+  { dx: 50, degrau: 1, abaixo: false, custo: 120 },
+  { dx: -100, degrau: 1, abaixo: false, custo: 150 },
+  { dx: 100, degrau: 1, abaixo: false, custo: 150 },
+]
 
 export interface PedidoEtiqueta {
   id: string;
@@ -91,9 +99,14 @@ export function comEtiqueta(filaNaTela: readonly string[], max = ETIQUETAS.maxFi
   return filaNaTela.slice(0, Math.max(0, max));
 }
 
-/** Quantos aparecem no selo "+N": todos que esperam, menos os que estão com o nome à mostra. */
+/** Quantos esperam sem o nome à mostra (todos que esperam, menos os com etiqueta). O selo "+N" saiu do HUD. */
 export function contarMaisN(esperando: number, comNome: number): number {
   return Math.max(0, esperando - comNome);
+}
+
+/** O lugar fica perto da cabeça de quem a etiqueta nomeia (não se descola). */
+export function perto(r: Retangulo, p: PedidoEtiqueta): boolean {
+  return Math.abs(r.b - p.y) <= ETIQUETAS.longeMax && Math.abs((r.l + r.r) / 2 - p.x) <= ETIQUETAS.ladoMax;
 }
 
 export class Posicionador {
@@ -133,7 +146,7 @@ export class Posicionador {
     const r = this.tmp;
     for (let i = 0; i < OPCOES.length; i++) {
       Posicionador.retangulo(p, i, r);
-      if (!dentro(r, area)) continue;
+      if (!dentro(r, area) || !perto(r, p)) continue;
       let ok = true;
       for (let k = 0; k < proibidas.length && ok; k++) {
         const a = proibidas[k];

@@ -33,3 +33,12 @@ export function loadAudioManifest(): Promise<AudioManifest> {
   })();
   return pending;
 }
+
+/**
+ * Sem servidor (modo de captura e demonstração do jogo 3D): a lista fica vazia sem perguntar a ninguém. Sem isso a
+ * página pede o config.json e /api/audio, que não existem ali, e o console mostra dois erros 404 em toda carga.
+ * Chame antes de criar o AudioManager.
+ */
+export function semListaDoServidor(): void {
+  pending ??= Promise.resolve({ musica: null, vozes: [] });
+}

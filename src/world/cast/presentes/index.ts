@@ -11,11 +11,17 @@
  *                   em ~0,92 m). Quem chama cuida da escala (na tela ele aparece com 30 a 45 cm, então
  *                   uma escala de 0,35 a 0,5). id desconhecido vira a estrela. Síncrono: as texturas do
  *                   disco chegam depois, sem trocar de programa de sombreamento.
- *   createGiftBox() devolve { root, lid, body } em TAMANHO REAL (caixa de 42 x 42 cm, 38 cm de altura com
- *                   a tampa e o laço). Origem de root no centro da base. O PIVÔ DA TAMPA (lid) é o CENTRO
- *                   DE CIMA do corpo (o meio da borda de cima da caixa, onde a tampa assenta): para abrir,
- *                   o jogo sobe lid.position.y e/ou gira lid.rotation.x/z. Para uma tampa que bascula na
- *                   borda de trás, gire em torno de lid.userData.bordaDeTras (um Vector3, no espaço de root).
+ *   createGiftBox() devolve { root, lid, body } em TAMANHO REAL (caixa de 42 x 42 cm, ~46 cm de altura com
+ *                   a tampa e o laço). Papel VERMELHO com estrelinhas douradas, fita de cetim dourado-creme e
+ *                   forro creme por dentro. Origem de root no centro da base. O PIVÔ DA TAMPA (lid) é o
+ *                   CENTRO DE CIMA do corpo (o meio da borda de cima da caixa, onde a tampa assenta).
+ *                   ABRIR (recomendado): root.userData.abrir(f), com f de 0 (fechada) a 1 (aberta), linear no
+ *                   tempo: a tampa solta do encaixe (sobe no máximo 0,12 m), bascula para trás em DOBRADIÇA
+ *                   na borda de trás até ~-1,9 rad em x, com mola (passa um pouco e volta), e fica presa à
+ *                   caixa (lê como um objeto só). Sem alocação. root.userData.inicioFaiscas (0,3) diz em que
+ *                   f a boca já está aberta o bastante para as faíscas; root.userData.boca é o centro da boca
+ *                   (Vector3 no espaço de root). Quem preferir abrir à mão: suba lid.position.y e/ou gire
+ *                   lid.rotation, ou gire em torno de lid.userData.bordaDeTras (Vector3, espaço de root).
  *
  * userData de cada presente (opcionais, o jogo usa se quiser):
  *   update(dt, t)   animação própria: o sino balança e o badalo bate, as rodas do trem giram, a neve do
@@ -25,6 +31,12 @@
  *                   material.dispose() nas malhas: as cópias COMPARTILHAM geometria e materiais (cache por
  *                   presente e nível). Tudo isso só é liberado por `dispose()` do catálogo, no fim do jogo.
  *   id, nome        o id do catálogo e o nome de tela.
+ *   escalaVisual    multiplicador de escala sugerido para a revelação e para a mão (padrão 1). O ajuste ao
+ *                   cubo usa a maior medida, então os finos (bengala, pinheirinho, meia) pareceriam prêmios
+ *                   menores que os redondos; multiplique a escala do jogo por este número para igualar o
+ *                   peso visual (eles passam do cubo de 1 m, de propósito).
+ *   fatorHalo       multiplicador sugerido para um halo/brilho aditivo atrás do presente (padrão 1): o metal
+ *                   polido já brilha sozinho (sino 0,5; estrela 0,7).
  *
  * setQuality('alta' | 'media' | 'baixa') troca a geometria dos presentes vivos (menos divisões, menos
  * cascas de pelúcia, menos flocos) e vale para os próximos.
@@ -55,6 +67,29 @@ import { moldarTrenzinho } from './trenzinho';
 
 /** Maior medida de um presente dentro do cubo de 1 m. */
 export const TAMANHO = 0.92;
+
+/**
+ * Peso visual (2ª rodada): os presentes finos parecem menores que os redondos no mesmo cubo. O jogo
+ * multiplica a escala da revelação e da mão por isto (root.userData.escalaVisual). Ajuste aqui.
+ */
+export const ESCALA_VISUAL: Partial<Record<string, number>> = { bengala: 1.25, pinheirinho: 1.2, meia: 1.15 };
+
+/** Halo aditivo do jogo atrás do presente: menos nos metais polidos (root.userData.fatorHalo). */
+export const FATOR_HALO: Partial<Record<string, number>> = { sino: 0.5, estrela: 0.7 };
+
+/** Abertura da tampa (root.userData.abrir): giro final em x (rad), subida máxima (m) e início das faíscas. */
+export const TAMPA_ABRE = { giro: -1.9, soltar: 0.07, pulo: 0.04, inicioFaiscas: 0.3 };
+
+const suave = (x: number) => {
+  const t = Math.min(1, Math.max(0, x));
+  return t * t * (3 - 2 * t);
+};
+/** Saída com mola: chega a 1 passando um pouco (uns 8%) e voltando. */
+const comMola = (x: number) => {
+  const t = Math.min(1, Math.max(0, x)) - 1;
+  const c = 1.45;
+  return 1 + (c + 1) * t * t * t + c * t * t;
+};
 
 export const MOLDES: Record<string, Moldar> = {
   estrela: moldarEstrela,
@@ -215,6 +250,8 @@ export function criarCatalogo(ctx: SetContext): CatalogoPresentes {
     const def = GIFTS.find((g) => g.id === id);
     root.userData.id = id;
     root.userData.nome = def?.name ?? id;
+    root.userData.escalaVisual = ESCALA_VISUAL[id] ?? 1;
+    root.userData.fatorHalo = FATOR_HALO[id] ?? 1;
     root.userData.compartilhado = true;
     root.userData.update = (dt: number, t: number) => {
       mats.tempo.value = t;
@@ -260,8 +297,22 @@ export function criarCatalogo(ctx: SetContext): CatalogoPresentes {
     }
     if (malhas[0]) malhas[0].onBeforeRender = (_r, cena) => ajustarAmbiente(cena);
     lid.userData.pivo = 'centro-de-cima';
-    lid.userData.bordaDeTras = new THREE.Vector3(0, caixa.alturaCorpo, -caixa.lado / 2);
+    lid.userData.bordaDeTras = new THREE.Vector3(0, caixa.alturaCorpo, -caixa.meiaTampa);
     root.userData.tamanho = { lado: caixa.lado, alturaCorpo: caixa.alturaCorpo, alturaTotal: caixa.alturaTotal };
+    root.userData.boca = new THREE.Vector3(0, caixa.alturaCorpo, 0);
+    root.userData.inicioFaiscas = TAMPA_ABRE.inicioFaiscas;
+    // abertura em dobradiça na borda de trás (veja o cabeçalho): f de 0 a 1, linear no tempo
+    const m = caixa.meiaTampa;
+    root.userData.abrir = (f: number) => {
+      const x = Math.min(1, Math.max(0, f));
+      // 1) solta do encaixe nos primeiros 30% (a saia da tampa tem 6 cm) e dá um pulinho no meio
+      const sobe = TAMPA_ABRE.soltar * suave(x / 0.3) + TAMPA_ABRE.pulo * Math.sin(Math.PI * Math.min(1, x / 0.7));
+      // 2) bascula para trás com mola, girando em volta da borda de trás (que sobe junto)
+      const ang = TAMPA_ABRE.giro * (x <= 0.12 ? 0 : comMola((x - 0.12) / 0.88));
+      lid.rotation.set(ang, 0, 0);
+      // o centro de cima da tampa, a uma distância m da dobradiça (para a frente), girado por ang
+      lid.position.set(0, caixa.alturaCorpo + sobe - m * Math.sin(ang), -m + m * Math.cos(ang));
+    };
     root.userData.compartilhado = true;
     root.userData.dispose = () => root.removeFromParent();
     return { root, lid, body };

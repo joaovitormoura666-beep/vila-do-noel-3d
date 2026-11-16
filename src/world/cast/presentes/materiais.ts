@@ -265,8 +265,10 @@ diffuseColor.rgb *= mix(0.8, 1.06, smoothstep(0.3, 0.75, lumTeddy));
     sh.fragmentShader = sh.fragmentShader.replace(
       '#include <opaque_fragment>',
       `float ndvVidro = abs(dot(normalize(vNormal), normalize(vViewPosition)));
-float fresnelVidro = pow(1.0 - ndvVidro, 3.0);
-diffuseColor.a = clamp(diffuseColor.a + fresnelVidro * 0.55, 0.0, 0.8);
+// 2ª rodada: borda ~40% mais forte e um pouco mais larga, para o contorno da esfera aparecer contra o céu
+// azul da janela (antes o vidro sumia nela)
+float fresnelVidro = pow(1.0 - ndvVidro, 2.6);
+diffuseColor.a = clamp(diffuseColor.a + fresnelVidro * 0.78, 0.0, 0.86);
 #include <opaque_fragment>`,
     );
   };

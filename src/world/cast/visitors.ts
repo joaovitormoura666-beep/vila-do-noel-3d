@@ -18,7 +18,15 @@ import { modelar } from './gnomos/modelagem';
 
 export interface VisitorsPart {
   createVisitor(seed: string): VisitorRig;
-  setQuality(level: Level): void;
+  /**
+   * Troca o nível. Os gnomos já em cena NÃO são remodelados todos no mesmo quadro (cada um custa de 20 a 30 ms):
+   * ficam numa lista e são trocados um por chamada de `stepQuality` (o jogo chama uma vez por quadro, no mesmo
+   * orçamento de "montar um gnomo"). Quem não chama `stepQuality` recebe a troca de todos de uma vez no próximo
+   * `setQuality`... por isso `setQuality(level, true)` troca todos já (o laboratório usa assim).
+   */
+  setQuality(level: Level, deUmaVez?: boolean): void;
+  /** Troca a malha de UM gnomo que ainda está no nível antigo. Devolve true se trocou (gastou o orçamento do quadro). */
+  stepQuality(): boolean;
 }
 
 /** Fração de detalhe (divisões das superfícies e número de mechas) por nível. */
@@ -42,7 +50,10 @@ export function buildVisitors(ctx: SetContext): VisitorsPart {
   materiais.setQuality(nivel);
   const cache = new Map<string, Entrada>();
   const sombras = new Map<string, { geo: THREE.BufferGeometry; usos: number }>();
-  const vivos = new Set<{ semente: string; rig: GnomoMontado; chave: string }>();
+  type Vivo = { semente: string; rig: GnomoMontado; chave: string };
+  const vivos = new Set<Vivo>();
+  /** Gnomos em cena ainda com a malha de um nível antigo (trocados um por quadro em stepQuality). */
+  const pendentes: Vivo[] = [];
 
   function pegarSombra(semente: string): THREE.BufferGeometry {
     let e = sombras.get(semente);
@@ -97,7 +108,7 @@ export function buildVisitors(ctx: SetContext): VisitorsPart {
   function createVisitor(seed: string): VisitorRig {
     const ap = escolherAparencia(seed);
     const { chave, e } = pegar(seed, nivel);
-    const registro = { semente: seed, chave, rig: null as unknown as GnomoMontado };
+    const registro: Vivo = { semente: seed, chave, rig: null as unknown as GnomoMontado };
     const rig = montarGnomo(ap, e.modelo, e.g, materiaisDoNivel(materiais, nivel), () => {
       vivos.delete(registro);
       soltar(registro.chave);
@@ -107,20 +118,36 @@ export function buildVisitors(ctx: SetContext): VisitorsPart {
     return rig;
   }
 
+  /** Troca as malhas de um gnomo em cena pelo nível atual. */
+  function trocar(v: Vivo) {
+    const antiga = v.chave;
+    const { chave, e } = pegar(v.semente, nivel);
+    v.rig.trocarMalhas(e.g, materiaisDoNivel(materiais, nivel));
+    v.chave = chave;
+    soltar(antiga);
+  }
+
+  const nivelDaChave = (chave: string) => chave.slice(chave.lastIndexOf('|') + 1);
+
   return {
     createVisitor,
-    setQuality(level) {
+    setQuality(level, deUmaVez = false) {
       if (level === nivel) return;
       nivel = level;
       materiais.setQuality(level);
-      // troca as malhas dos gnomos que já estão em cena pelo novo nível de detalhe
-      for (const v of vivos) {
-        const antiga = v.chave;
-        const { chave, e } = pegar(v.semente, level);
-        v.rig.trocarMalhas(e.g, materiaisDoNivel(materiais, level));
-        v.chave = chave;
-        soltar(antiga);
+      pendentes.length = 0;
+      for (const v of vivos) if (nivelDaChave(v.chave) !== level) pendentes.push(v);
+      if (deUmaVez) while (pendentes.length) trocar(pendentes.pop()!);
+    },
+    stepQuality() {
+      while (pendentes.length) {
+        const v = pendentes.shift()!;
+        // descartado no meio do caminho, ou já no nível certo: passa para o próximo sem gastar o quadro
+        if (!vivos.has(v) || nivelDaChave(v.chave) === nivel) continue;
+        trocar(v);
+        return true;
       }
+      return false;
     },
   };
 }

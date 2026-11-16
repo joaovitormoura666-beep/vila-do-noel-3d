@@ -19,6 +19,25 @@ export default defineConfig({
   },
   plugins: [
     {
+      // Sem o servidor do jogo, o laboratório responde ele mesmo às duas leituras que as páginas fazem na carga
+      // (config.json do front-end e a lista de áudios do servidor): sem isso o console mostra dois erros 404 em
+      // toda foto. As respostas dizem "sem back-end próprio" e "sem áudios gravados", o mesmo que o 404 significa.
+      name: 'lab-respostas-sem-servidor',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          const url = (req.url || '').split('?')[0];
+          if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+          let corpo: string | null = null;
+          if (url === '/config.json' && !existsSync(resolve(PUBLICA, 'config.json')) && !existsSync(resolve(__dirname, '..', 'config.json'))) corpo = '{}';
+          else if (url === '/api/audio') corpo = '{"musica":null,"vozes":[]}';
+          if (corpo === null) return next();
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(corpo);
+        });
+      },
+    },
+    {
       // Serve public/assets direto do disco: recursos baixados com o servidor ligado aparecem na hora
       // (o Vite só conhece os arquivos de public/ que existiam quando ele iniciou).
       name: 'lab-assets-ao-vivo',

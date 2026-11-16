@@ -17,8 +17,9 @@ export const buildCast: BuildCast = (ctx) => {
     createSanta: santa.createSanta,
     createGift: gifts.createGift,
     createGiftBox: gifts.createGiftBox,
-    setQuality(level) {
-      visitors.setQuality(level);
+    stepQuality: () => visitors.stepQuality(),
+    setQuality(level, aosPoucos = false) {
+      visitors.setQuality(level, !aosPoucos);
       santa.setQuality(level);
       gifts.setQuality(level);
     },

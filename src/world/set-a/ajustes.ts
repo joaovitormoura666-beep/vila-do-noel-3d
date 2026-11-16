@@ -8,9 +8,10 @@
  *     z = -5,5  ┌──────[  JANELA em arco  ]──────────────────────── parede do fundo
  *               │▓▓▓     x -2,85 .. -0,25        ▲ árvore (1,0  -3,85)
  *     LAREIRA   │▓▓▓▶ fogo ──►   ▣ POLTRONA = trono do Noel (-0,3  -2,85), giro 0,68
- *     z -3,65   │▓▓▓      lanterna ◦   ( tapete redondo )      ● entrega (1,04  -2,08)
- *     (boca +X) │▓▓▓                                                    ──► saída (direita)
- *               │                piso livre: fila em três fileiras atravessadas à câmera
+ *     z -3,65   │▓▓▓      lanterna ◦   ( tapete redondo )   saco ● entrega (1,47  -2,30)
+ *     (boca +X) │▓▓▓                                                    ──► saída (direita, atrás da fila)
+ *               │                piso livre: fila em três fileiras atravessadas à câmera; sobe
+ *               │                pela direita até a entrega (FILA.subida)
  *     x = -3,6  │                                     ⌒ cadeira de balanço (2,85  5,35), 1º plano
  */
 import type { Look } from '../contracts';
@@ -146,11 +147,6 @@ export const LUGAR = {
    */
   distanciaDaEntrega: 1.85,
   direcaoDaEntrega: 1.27,
-  /**
-   * Referência das fileiras da fila (o antigo ponto de entrega, 1,55 m na direção 1,05 rad): as fileiras foram
-   * compostas a partir dele e continuam no mesmo lugar depois que a entrega foi para a direita (jogo 3D).
-   */
-  referenciaDaFila: { distancia: 1.55, direcao: 1.05 },
   tapete: { x: -0.05, z: -2.4, diametro: 3.1, giro: 0.5 },
   /** Lanterna de madeira acesa no piso, à esquerda da poltrona (baixa: não entra na silhueta do Noel). */
   lanterna: { x: -1.5, z: -2.45, giro: 0.5 },
@@ -177,7 +173,7 @@ export const PRIMEIRO_PLANO = {
   balanco: { x: 2.85, z: 5.35, giro: -2.0, tom: 0.32 },
 };
 
-/** Luzes. Dez no total (três da lareira, uma da árvore e as seis daqui) e duas com sombra (o fogo e o luar). */
+/** Luzes. Onze no total (três da lareira, uma da árvore e as sete daqui, contando o preenchimento da fila do jogo 3D), sempre: o destaque da entrega apagado fica com força zero. Duas com sombra (o fogo e o luar). */
 export const LUZ = {
   /** Luar que entra pela janela: cor e força vêm de exterior.luzExterna a cada quadro, vezes este ganho. */
   luar: {
@@ -197,8 +193,11 @@ export const LUZ = {
   },
   /** Preenchimento quente e baixo: mantém as sombras marrom-avermelhadas. */
   preenchimento: { ceu: '#ffb47a', chao: '#7a3c1c', forca: 0.3 },
-  /** Lanterna acesa no piso, ao lado da poltrona. */
-  lampiao: { cor: '#ffb469', forca: 2.2, alcance: 5.5 },
+  /**
+   * Lanterna acesa no piso, ao lado da poltrona. Alcance curto e queda física (decaimento 2): o brilho fica no piso e
+   * na poltrona perto dela; com 5,5 m e queda 1,6 os gnomos que passavam entre a lanterna e o fogo estouravam.
+   */
+  lampiao: { cor: '#ffb469', forca: 2.6, alcance: 3.8, decaimento: 2 },
   /** Clarão quente no alto, sem sombra: devolve às vigas e ao peito da chaminé a luz que o piso rebate. */
   rebatida: { cor: '#ff9a55', forca: 3.6, alcance: 10, x: -0.6, y: 4.0, z: -0.8 },
   /** Poça de luz do lugar do Noel: spot largo, do alto, deslocado (dx, dz) para o lado da câmera. */
@@ -208,7 +207,7 @@ export const LUZ = {
    * fila é vista de costas e o fogo pega o outro lado dos visitantes: sem isto as costas viram uma massa escura.
    * Fraco de propósito (é a luz que o piso e a sala rebatem, não um refletor).
    */
-  fila: { cor: '#ffb98a', forca: 9, angulo: 0.62, posicao: [6.2, 6.6, 7.4] as [number, number, number], alvo: [1.4, 0.3, 0.2] as [number, number, number] },
+  fila: { cor: '#ffb98a', forca: 10, angulo: 0.75, posicao: [6.2, 6.6, 7.4] as [number, number, number], alvo: [1.9, 0.4, -0.6] as [number, number, number] },
   /** Destaque da área de entrega (setDeliveryActive). */
   entrega: { cor: '#ffd9a0', forca: 26, angulo: 0.34, altura: 5.0 },
   /** Chamas das velas e do lampião (emissivo; o brilho do palco faz o halo). */
@@ -255,30 +254,42 @@ export const LOOK: Look = {
 
 /** Fila e saída. */
 export const FILA = {
-  espaco: 1.05,
-  folgaDaFrente: 1.15,
+  espaco: 1.0,
+  folgaDaFrente: 0.9,
   /**
-   * Serpentina medida a partir da entrega, em relação à tela: cada fileira fica a `p` metros da entrega em
-   * direção à câmera e vai de `e` a `d` metros (negativo = para a esquerda da tela). As de perto são mais
-   * curtas porque a perspectiva fecha o piso visível à esquerda.
+   * Caminho da fila (x, z do mundo), da entrada até a entrega (a entrega é acrescentada no fim). Desenhado para a
+   * câmera do JOGO (CAMERA_JOGO em src/jogo3d/config.ts, mais fechada no Noel), com todos os pés acima da faixa do
+   * chat do TikTok (y < 1490 na tela de 1080x1920) e longe do fogo da lareira:
+   *   entra pela borda esquerda (fora da tela), desce pela esquerda em direção à câmera (na frente da lanterna),
+   *   atravessa a frente da sala da esquerda para a direita (a fileira da frente; as cabeças ficam abaixo dos
+   *   joelhos do Noel) até a borda direita e sobe pela direita, diante da árvore, até a entrega. Cabem 10
+   *   esperando na tela.
+   * Cada ponto é um lugar da fila (a 1 m um do outro, como FILA.espaco; o último a 0,9 m da entrega, como
+   * folgaDaFrente). Nenhum lugar fica na faixa da tela que vai da câmera até a entrega (x de 713 a 981 px, com a
+   * meia largura de um gnomo): quem está na fila nunca tampa quem está sendo atendido nem a festa. Pontos medidos
+   * projetando a tela no piso (16/11/2026); se a câmera do jogo mudar, refaça.
    */
-  fileiras: [
-    { p: 2.7, e: -2.1, d: 0.6 },
-    { p: 3.8, e: -1.75, d: 0.55 },
-    { p: 4.9, e: -1.35, d: 0.35 },
-  ],
-  /**
-   * Subida da fila pela direita até a entrega (d, p como nas fileiras, a partir da referência): a fileira da frente
-   * termina na borda direita e a fila sobe junto dela. O primeiro da fila fica aqui, à direita do visitante atendido.
-   */
-  subida: [
-    [1.05, 2.5],
-    [1.32, 1.8],
-    [1.3, 1.1],
+  caminho: [
+    [-2.55, 0.21],
+    [-1.59, -0.05],
+    [-0.73, -0.56],
+    [0.17, -0.11],
+    [0.75, 0.7],
+    [0.53, 1.68],
+    [1.53, 1.77],
+    [2.42, 1.33],
+    [3.35, 0.96],
+    [3.03, 0.01],
+    [2.7, -0.93],
+    [2.23, -1.82],
   ] as Array<[number, number]>,
-  /** Saída (x, z do mundo, depois da entrega): por trás do primeiro da fila e à frente da árvore, até a borda direita. */
+  /**
+   * Saída (x, z do mundo, depois da entrega): para trás e para a direita, por trás do primeiro da fila e à frente da
+   * árvore, até a borda direita. Quem ganhou o presente começa pelo "passeio" (src/jogo3d: uns passos para a câmera,
+   * onde mostra o presente) e depois segue por aqui.
+   */
   saida: [
-    [2.25, -2.75],
+    [2.1, -2.75],
     [3.3, -2.8],
     [4.7, -2.55],
     [7.6, -2.0],

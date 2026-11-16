@@ -24,6 +24,9 @@ const TONE: Record<Look['toneMapping'], THREE.ToneMapping> = {
   none: THREE.NoToneMapping,
 };
 
+/** Limite de cada canal (cor linear) na entrada do brilho: segura reflexos de raspão com valor enorme. */
+const BRILHO_MAX = 24;
+
 /** Acabamento de imagem: vinheta, separação quente e frio, saturação e granulado. Trabalha em cor linear, antes do OutputPass. */
 const FinishShader = {
   uniforms: {
@@ -346,6 +349,17 @@ export class Stage {
     const b = look.bloom;
     if (b) {
       const bloom = new UnrealBloomPass(new THREE.Vector2(this.bufferW, this.bufferH), b.strength, b.radius, b.threshold);
+      // Proteção da live: um único pixel inválido (NaN ou infinito, que um material pode gerar num ângulo raro)
+      // seria espalhado pelo desfoque do brilho e apagaria a tela inteira; um pixel "quente" demais (reflexo de
+      // raspão com valor enorme) vira uma mancha branca. Antes do brilho, o inválido vira preto e o quente é
+      // limitado a BRILHO_MAX (o fogo e a lua ficam abaixo disso). Visto no jogo 3D em 1080x1920: a barba do
+      // Noel, com anisotropia, apagou a tela, e o gorro de um gnomo junto da lareira fez uma mancha.
+      const hp = bloom.materialHighPassFilter;
+      hp.fragmentShader = hp.fragmentShader.replace(
+        'vec4 texel = texture2D( tDiffuse, vUv );',
+        `vec4 texel = texture2D( tDiffuse, vUv );\n\t\t\tif ( any( isnan( texel ) ) || any( isinf( texel ) ) || !( dot( texel, texel ) < 1.0e30 ) ) texel = vec4( 0.0 );\n\t\t\ttexel.rgb = min( texel.rgb, vec3( ${BRILHO_MAX.toFixed(1)} ) );`,
+      );
+      hp.needsUpdate = true;
       composer.addPass(bloom);
       this.bloom = bloom;
     }

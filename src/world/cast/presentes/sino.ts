@@ -1,7 +1,8 @@
 /**
  * SINO DOURADO: sino de latão fundido e escovado, com a boca larga e a borda grossa arredondada, cintura
- * fina, ombro e coroa; dois frisos em relevo; o lado de dentro escuro (a luz não entra) e o badalo
- * pendurado aparecendo pela boca. Na coroa, a argola e um laço de cetim vermelho com duas folhas de
+ * fina, ombro e coroa; dois frisos em relevo; o lado de dentro em bronze escuro e áspero (a luz não entra;
+ * não reflete o ambiente como espelho) e o badalo de ferro pendurado aparecendo pela boca.
+ * Num jogo com halo atrás do presente, use root.userData.fatorHalo (0,5 para o sino; veja index.ts). Na coroa, a argola e um laço de cetim vermelho com duas folhas de
  * azevinho e bagas.
  *
  * ANIMAÇÃO (userData.update): o sino balança devagar em volta da argola e o badalo atrasa e bate na borda.
@@ -43,13 +44,22 @@ export const moldarSino: Moldar = (q) => {
     nv: div(q, 42, 24),
     ponto: torno(perfil, (u, v) => (v < 0.5 ? fbm3(u * 9, v * 6, 0.5, 2, 3) * 0.004 : 0)),
     cor(_u, v) {
-      // dentro escuro; perto da boca, de fora, um pouco mais claro (gasto)
-      const dentro = v > 0.6 ? 0.25 + 0.3 * (1 - (v - 0.6) / 0.4) : 1;
-      const boca = v > 0.42 && v < 0.6 ? 1.06 : 1;
-      const k = dentro * boca * 0.85;
-      return [COR.ouro[0] * k, COR.ouro[1] * k, COR.ouro[2] * k];
+      // DENTRO: bronze sombreado, bem mais escuro (2ª rodada: na sala a boca do sino refletia o ambiente
+      // inteiro e acendia como uma lâmpada; o reflexo de ambiente não sabe que ali é uma cavidade, então
+      // a sombra precisa estar na cor). Fica um pouco mais claro só na borda, onde a luz ainda entra.
+      if (v > 0.6) {
+        const fundo = (v - 0.6) / 0.4; // 0 na borda, 1 no teto de dentro
+        const k = 0.36 * (1 - fundo) + 0.1 * fundo;
+        return [COR.ouro[0] * k * 0.85, COR.ouro[1] * k * 0.78, COR.ouro[2] * k * 0.7];
+      }
+      // fora: latão; a saia de baixo (onde bate a luz da entrega de frente) um pouco mais escura e mais
+      // fosca, para o realce se espalhar em vez de virar um ponto branco-amarelado
+      const saia = Math.min(1, Math.max(0, (v - 0.3) / 0.2));
+      const k = 0.84 - 0.2 * saia;
+      return [COR.ouro[0] * k, COR.ouro[1] * k * 0.98, COR.ouro[2] * k * 0.94];
     },
-    acab: (u, v) => [1, (v > 0.6 ? 0.62 : 0.5) + 0.05 * Math.sin(u * 40 + v * 7), 0, 0],
+    // dentro bem mais áspero (bronze fundido, sem polimento) e só meio metálico: não espelha o ambiente
+    acab: (u, v) => (v > 0.6 ? [0.55, 0.9, 0, 0] : [1, 0.52 + 0.18 * Math.min(1, Math.max(0, (v - 0.3) / 0.2)) + 0.05 * Math.sin(u * 40 + v * 7), 0, 0]),
     uv: (u, v) => [u * 0.7, v * 0.5],
   });
   // coroa e argola
@@ -58,7 +68,8 @@ export const moldarSino: Moldar = (q) => {
 
   // badalo: haste e bola, presos no teto de dentro (pivô)
   const pivoBadalo = new THREE.Vector3(0, TOPO - 0.03, 0);
-  const badalo = new Molde().tinta([COR.ouro[0] * 0.6, COR.ouro[1] * 0.6, COR.ouro[2] * 0.6], [1, 0.45, 0, 0]);
+  // badalo de ferro escurecido (fica dentro da sombra do sino; antes era latão claro e acendia na boca)
+  const badalo = new Molde().tinta([COR.ouro[0] * 0.3, COR.ouro[1] * 0.26, COR.ouro[2] * 0.22], [0.8, 0.7, 0, 0]);
   const haste = new THREE.CylinderGeometry(0.0035, 0.0035, 0.2, 8, 1);
   badalo.juntar(haste, new THREE.Matrix4().makeTranslation(0, pivoBadalo.y - 0.1, 0));
   haste.dispose();

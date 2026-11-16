@@ -1,6 +1,7 @@
 /**
  * GLOBO DE NEVE: redoma de vidro fino (reflexo na borda, quase invisível de frente) sobre uma base de
- * nogueira torneada e envernizada, com um friso de latão. Dentro, um montinho de neve com uma casinha de
+ * nogueira torneada e envernizada, com um friso de latão. Dentro, a calota de baixo cheia de neve leitosa
+ * (do tampo da base até o monte, colada no vidro) e, em cima dela, um montinho com uma casinha de
  * telhado nevado e janela acesa (a única luz própria, fraca) e dois pinheirinhos com neve nas pontas.
  *
  * ANIMAÇÃO (userData.update): a neve dentro do globo rodopia devagar e cai, recomeçando em cima (posição
@@ -61,6 +62,30 @@ export const moldarGlobo: Moldar = (q) => {
     },
     cor: () => neve,
     acab: () => [0, 0.8, 0, 0],
+  });
+
+  // 2ª rodada: a calota de baixo da redoma CHEIA de neve (antes o monte era um disco solto e, por baixo
+  // dele, via-se a janela através do vidro vazio até a base: lia como uma ilha flutuando). A neve desce
+  // colada no vidro, da borda do monte até o tampo da base, num azul leitoso (#cfd8e6) mais escuro embaixo,
+  // com um tico de brilho próprio que imita a luz atravessando a neve molhada (translucidez falsa).
+  const leitosa = new THREE.Color('#cfd8e6');
+  const cheio: Cor = [leitosa.r, leitosa.g, leitosa.b];
+  const raioEsfera = (y: number) => Math.sqrt(Math.max(0, R * R - (y - CENTRO.y) ** 2));
+  base.adicionar({
+    nu: div(q, 40, 18),
+    nv: div(q, 6, 4),
+    ponto(u, v, out) {
+      const a = u * Math.PI * 2;
+      const y = BASE_ALTURA + (yNeve - BASE_ALTURA) * v;
+      // encostada no vidro (um nada para dentro), com um ondulado leve de neve assentada
+      const r = raioEsfera(y) * 0.975 * (1 + fbm3(Math.cos(a) * 3, y * 60, Math.sin(a) * 3, 2, 3) * 0.012 * v);
+      out.set(Math.sin(a) * r, y, Math.cos(a) * r);
+    },
+    cor(_u, v) {
+      const k = 0.78 + 0.22 * v;
+      return [(cheio[0] * (1 - v) + neve[0] * v) * k, (cheio[1] * (1 - v) + neve[1] * v) * k, (cheio[2] * (1 - v) + neve[2] * v) * k];
+    },
+    acab: (_u, v) => [0, 0.82, 0, 0.05 * (1 - v * 0.5)],
   });
 
   // casinha: paredes vermelhas, telhado de duas águas nevado, janela acesa e porta

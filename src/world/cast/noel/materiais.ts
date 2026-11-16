@@ -143,24 +143,23 @@ diffuseColor.rgb *= mix(0.82, 1.05, smoothstep(0.3, 0.75, lumTeddy));
   };
   pelo.customProgramCacheKey = () => 'noel-pelucia-tufos';
 
-  // mechas: fios finos em mapa de normal (não mais o relevo largo que parecia sabão) e brilho anisotrópico
-  // correndo ao longo dos fios (a direção v das mechas)
+  // mechas: fios finos em mapa de normal (não mais o relevo largo que parecia sabão) e brilho de sheen
+  // macio. A anisotropia (brilho correndo ao longo dos fios) saiu: em alguns ângulos ela gerava pixels
+  // NaN na barba, que o brilho (bloom) espalhava em quadrados pretos.
   const fios = texturaDeFios();
   fios.cor.repeat.set(12, 3);
   fios.normal.repeat.set(12, 3);
   texturas.push(fios.cor, fios.normal);
   const mecha = new THREE.MeshPhysicalMaterial({
     name: 'noel-mechas',
-    color: CORES.pelo,
+    color: CORES.barba,
     roughness: 0.66,
-    sheen: 0.8,
-    sheenColor: new THREE.Color('#ffffff'),
-    sheenRoughness: 0.45,
+    sheen: 0.6,
+    sheenColor: new THREE.Color('#fff4e6'),
+    sheenRoughness: 0.5,
     map: fios.cor,
     normalMap: fios.normal,
     normalScale: new THREE.Vector2(0.9, 0.9),
-    anisotropy: 0.6,
-    anisotropyRotation: Math.PI / 2,
     specularIntensity: 0.3,
     vertexColors: true,
     envMapIntensity: 0.55,

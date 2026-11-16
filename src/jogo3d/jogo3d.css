@@ -116,52 +116,105 @@ body.obs #demo {
   pointer-events: none;
 }
 
+/* Um só sistema de contorno nos textos soltos (título e faixa): 5 a 7 px de azul-noite, sombra curta e macia. */
 .j3d-titulo {
   position: absolute;
   left: 0;
   right: 0;
-  top: 198px;
+  top: 204px;
   text-align: center;
   font-weight: 700;
-  font-size: 108px;
+  font-size: 84px;
   line-height: 1;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   color: #f3cf85;
-  -webkit-text-stroke: 14px #8e1c28;
+  -webkit-text-stroke: 5px var(--noite);
   paint-order: stroke fill;
-  text-shadow: 0 8px 0 rgba(9, 16, 30, 0.45), 0 0 40px rgba(232, 188, 101, 0.25);
+  text-shadow: 0 4px 12px rgba(9, 16, 30, 0.55);
 }
 
 .j3d-dica,
-.j3d-contador {
+.j3d-linha {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  border-radius: 999px;
   transition: opacity 0.35s ease;
 }
 .j3d-dica {
-  top: 324px;
-  padding: 8px 28px;
-  background: rgba(13, 22, 38, 0.62);
-  font-weight: 500;
-  font-size: 31px;
+  top: 300px;
+  padding: 6px 26px;
+  border-radius: 999px;
+  background: rgba(13, 22, 38, 0.66);
+  font-weight: 600;
+  font-size: 38px;
+  line-height: 1.15;
 }
 .j3d-dica.longa {
-  font-size: 27px;
+  font-size: 32px;
+}
+.j3d-rosa {
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0 0.12em;
+  vertical-align: -0.17em;
+}
+.j3d-rosa svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.j3d-linha {
+  top: 372px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 .j3d-contador {
-  top: 384px;
-  padding: 5px 26px;
+  padding: 5px 24px;
+  border-radius: 999px;
   background: var(--verde);
   border: 3px solid var(--ouro);
   color: #f3cf85;
   font-weight: 600;
-  font-size: 29px;
+  font-size: 30px;
+}
+/* quem está sendo atendido agora: fixo no alto (a etiqueta presa à cabeça se perdia na entrega) */
+.j3d-agora {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 22px 4px 6px;
+  border-radius: 999px;
+  background: rgba(122, 22, 32, 0.94);
+  border: 3px solid var(--ouro);
+  font-weight: 600;
+  font-size: 32px;
+  line-height: 1;
+}
+.j3d-agora.visivel {
+  display: flex;
+}
+.j3d-agora .rotulo {
+  order: 1;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ouro-claro);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.j3d-agora .j3d-avatar {
+  order: 0;
+  width: 46px;
+  height: 46px;
+}
+.j3d-agora .j3d-nome {
+  order: 2;
+  max-width: 300px;
 }
 .j3d-hud.com-faixa .j3d-dica,
-.j3d-hud.com-faixa .j3d-contador {
+.j3d-hud.com-faixa .j3d-linha {
   opacity: 0;
 }
 
@@ -185,7 +238,7 @@ body.obs #demo {
   font-weight: 600;
   font-size: 40px;
   color: var(--neve);
-  -webkit-text-stroke: 9px var(--noite);
+  -webkit-text-stroke: 7px var(--noite);
   paint-order: stroke fill;
   white-space: nowrap;
   overflow: hidden;
@@ -195,8 +248,9 @@ body.obs #demo {
   font-weight: 700;
   font-size: 72px;
   color: var(--ouro-claro);
-  -webkit-text-stroke: 13px var(--vermelho-escuro);
+  -webkit-text-stroke: 7px var(--noite);
   paint-order: stroke fill;
+  text-shadow: 0 4px 12px rgba(9, 16, 30, 0.55);
 }
 
 /* etiquetas de nome */
@@ -282,40 +336,20 @@ body.obs #demo {
   max-width: 330px;
 }
 
-/* selo "+N na fila" */
-.j3d-mais {
-  position: absolute;
-  left: 0;
-  top: 0;
-  padding: 6px 20px;
-  border-radius: 999px;
-  background: rgba(23, 77, 59, 0.92);
-  border: 3px solid var(--ouro);
-  color: #f3cf85;
-  font-weight: 600;
-  font-size: 27px;
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.j3d-mais.visivel {
-  opacity: 1;
-}
-
 /* balão de fala do Noel */
 .j3d-balao {
   position: absolute;
   left: 0;
   top: 0;
   box-sizing: border-box;
-  max-width: 620px;
-  padding: 20px 32px 22px;
-  border-radius: 38px;
+  max-width: 470px;
+  padding: 18px 28px 20px;
+  border-radius: 34px;
   background: var(--neve);
   color: var(--noite);
   border: 4px solid var(--ouro);
   font-weight: 600;
-  font-size: 44px;
+  font-size: 40px;
   line-height: 1.14;
   text-align: center;
   box-shadow: 0 8px 0 rgba(9, 16, 30, 0.32);
@@ -329,17 +363,18 @@ body.obs #demo {
 .j3d-balao.visivel {
   opacity: 1;
 }
+/* cauda do lado direito, apontando para a boca do Noel (o balão fica à esquerda da cabeça dele) */
 .j3d-balao::after {
   content: '';
   position: absolute;
-  left: var(--cauda);
-  bottom: -22px;
+  right: -19px;
+  top: var(--cauda);
   width: 30px;
   height: 30px;
   background: var(--neve);
   border-right: 4px solid var(--ouro);
   border-bottom: 4px solid var(--ouro);
-  transform: translateX(-50%) rotate(45deg);
+  transform: translateY(-50%) rotate(-45deg);
 }
 
 /* aviso (fila cheia) */

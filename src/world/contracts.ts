@@ -139,6 +139,15 @@ export interface VisitorPose {
   joy: number;
   /** Olhando para cima (para o presente). */
   lookUp: number;
+  /**
+   * Opcional: meia largura (m) do presente que ele segura, no eixo X do corpo. As mãos encostam nos lados do
+   * presente em vez de ficarem na largura padrão de uma caixa. Sem o campo, vale a largura da caixa.
+   */
+  holdWidth?: number;
+  /** Opcional: meia altura (m) do presente nas mãos; o presente sobe isto para assentar acima do gorro. */
+  holdLift?: number;
+  /** Opcional: giro da cabeça e do peito em relação ao corpo (rad, + = para a esquerda dele); para olhar alguém de lado. */
+  turn?: number;
 }
 
 export interface VisitorRig {
@@ -189,7 +198,10 @@ export interface SantaRig {
  * Em tamanho real: cerca de 42 cm de lado e 46 cm de altura com o laço (a definitiva, em
  * src/world/cast/presentes/caixa.ts; a provisória tem ~1 m). O pivô de `lid` é o centro de cima do
  * corpo (onde a tampa assenta): subir lid.position.y e girar lid.rotation abre a tampa.
- * Opcional, em root.userData: tamanho { lado, alturaCorpo, alturaTotal } e dispose().
+ * Opcional, em root.userData: tamanho { lado, alturaCorpo, alturaTotal } e dispose(); e, na definitiva,
+ * abrir(f) (f de 0 a 1, linear no tempo: a tampa solta, bascula em dobradiça na borda de trás com mola e
+ * sobe no máximo 0,12 m, sem se separar da caixa), inicioFaiscas (o f a partir do qual soltar faíscas)
+ * e boca (Vector3 do centro da boca, no espaço de root).
  */
 export interface GiftBox {
   root: THREE.Group;
@@ -206,11 +218,19 @@ export interface Cast {
    * Centrado na origem, cabendo em um cubo de 1 m. Quem chama cuida da escala.
    * Opcional, em userData: update(dt, t) (animação própria: chame a cada quadro se existir) e
    * dispose() (tira de cena; as cópias compartilham geometria e materiais, então não descarte
-   * geometry nem material das malhas). Detalhes em src/world/cast/presentes/index.ts.
+   * geometry nem material das malhas); escalaVisual (multiplica a escala na revelação e na mão: os
+   * finos, como a bengala, vêm maiores) e fatorHalo (multiplica um halo aditivo atrás do presente: os
+   * metais polidos pedem menos). Detalhes em src/world/cast/presentes/index.ts.
    */
   createGift(id: string): THREE.Object3D;
   createGiftBox(): GiftBox;
-  setQuality(level: Level): void;
+  /**
+   * Troca o nível de detalhe. Com `aosPoucos` = true, os visitantes já em cena não são remodelados todos no mesmo
+   * quadro: o jogo chama `stepQuality()` uma vez por quadro e cada chamada troca um (opcional para quem implementa).
+   */
+  setQuality(level: Level, aosPoucos?: boolean): void;
+  /** Opcional: troca a malha de um visitante pendente da última troca de nível; true se trocou. */
+  stepQuality?(): boolean;
 }
 
 export type BuildCast = (ctx: SetContext) => Cast;

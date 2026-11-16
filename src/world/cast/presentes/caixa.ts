@@ -1,13 +1,19 @@
 /**
- * CAIXA DE PRESENTE: caixa de papelão forrada com papel de presente (padrão original verde-pinheiro com
- * estrelinhas douradas e pontinhos de neve, veja texturas.ts), quinas arredondadas, borda com espessura e
- * o fundo de dentro em sombra; tampa que encaixa por fora (um nada maior), fita de cetim vermelho PLANA em
- * cruz (com as bordas dobradas, como fita de verdade) e um laço volumoso duplo em cima.
+ * CAIXA DE PRESENTE: caixa de papelão forrada com papel de presente (padrão original VERMELHO #B62835 com
+ * estrelinhas douradas e pontinhos de neve, veja texturas.ts), quinas arredondadas e borda com espessura;
+ * por dentro do corpo, um FORRO de cetim creme (aberta, a boca da caixa acende e lê no celular, mesmo
+ * pequena; o lado de dentro da tampa fica no papel, na sombra, para servir de fundo ao presente);
+ * tampa que encaixa por fora (um nada maior), fita de cetim DOURADO-CREME PLANA em cruz (com as bordas
+ * dobradas, como fita de verdade) e um laço volumoso duplo em cima.
+ *
+ * Por que vermelho e dourado (2ª rodada): na sala, a caixa para diante da árvore verde; o papel verde com
+ * fita vermelha sumia no fundo. Vermelho com fita dourada destaca da árvore e da janela azul.
  *
  * Medidas reais: 42 x 42 cm de base, corpo de 30 cm, tampa de 7,5 cm (encaixa 6 cm no corpo); com o laço,
  * cerca de 46 cm de altura. Origem no centro da base. A TAMPA tem o pivô no CENTRO DE CIMA DO CORPO
  * (y = alturaCorpo): é ali que fica o grupo `lid`; as malhas da tampa estão em volta desse ponto.
- * Quatro malhas: papel e fita do corpo, papel e fita da tampa. Geometria compartilhada por nível.
+ * Quatro malhas: papel e cetim (fita + forro) do corpo, papel e cetim da tampa. Geometria compartilhada por
+ * nível. A abertura em dobradiça (borda de trás, com mola) está pronta em root.userData.abrir(f), em index.ts.
  */
 import * as THREE from 'three';
 import type { Level } from '../../contracts';
@@ -77,7 +83,7 @@ interface Trecho {
  * Casca de caixa por um perfil (meia medida, altura) que percorre fundo, parede, borda, parede de dentro
  * e fundo de dentro. u corre em volta (quadrado de cantos arredondados).
  */
-function casca(m: Molde, trechos: Trecho[], nu: number, nv: number, rc: number, semente: number) {
+function casca(m: Molde, trechos: Trecho[], nu: number, nv: number, rc: number, semente: number, tinta: Cor = [1, 1, 1], uvLiso = false, orientar?: 1 | -1) {
   const pesoTotal = trechos.reduce((a, t) => a + t.peso, 0);
   const V2 = new THREE.Vector2();
   const em = (v: number) => {
@@ -92,16 +98,20 @@ function casca(m: Molde, trechos: Trecho[], nu: number, nv: number, rc: number, 
   m.adicionar({
     nu,
     nv,
+    // as cascas de dentro dizem o lado à mão: a votação de dentro e fora erraria (o centro delas fica dentro)
+    orientar,
     ponto(u, v, out) {
       const { t, f } = em(v);
       const [meia, y] = t.f(f);
       const escala = meia <= 0 ? 0 : 1;
       quadrado(u, Math.max(meia, 1e-4), Math.min(rc, Math.max(meia, 1e-4)), V2);
       // pequenas ondulações do papel colado (o papelão não é perfeito)
-      const onda = Math.sin(u * 47 + semente) * Math.sin(y * 31) * 0.0006;
+      const onda = uvLiso ? 0 : Math.sin(u * 47 + semente) * Math.sin(y * 31) * 0.0006;
       out.set(V2.x * escala * (1 + onda), y, V2.y * escala * (1 + onda));
     },
     uv(u, v) {
+      // forro: UV parada (o relevo de fios do cetim viraria raios no fundo; o forro fica liso e macio)
+      if (uvLiso) return [0.5, 0.5];
       const { t, f } = em(v);
       const [meia, y] = t.f(f);
       if (t.plano) {
@@ -113,7 +123,7 @@ function casca(m: Molde, trechos: Trecho[], nu: number, nv: number, rc: number, 
     },
     cor(_u, v) {
       const { t } = em(v);
-      return [t.cor, t.cor, t.cor];
+      return [t.cor * tinta[0], t.cor * tinta[1], t.cor * tinta[2]];
     },
   });
 }
@@ -130,6 +140,8 @@ export interface CaixaPronta {
   lado: number;
   alturaCorpo: number;
   alturaTotal: number;
+  /** Meia medida de fora da tampa (a borda de trás fica em z = -meiaTampa): é a linha da dobradiça. */
+  meiaTampa: number;
 }
 
 const cache = new Map<Level, CaixaPronta>();
@@ -140,7 +152,10 @@ export function liberarCaixas() {
   cache.clear();
 }
 
-const VERMELHO_FITA: Cor = COR.vermelho;
+/** Cetim dourado-creme (não metálico: tecido com brilho macio, não estoura no bloom). */
+const COR_FITA: Cor = [COR.dourado[0] * 0.92 + COR.creme[0] * 0.08, COR.dourado[1] * 0.92 + COR.creme[1] * 0.08, COR.dourado[2] * 0.85 + COR.creme[2] * 0.15];
+/** Forro de dentro: cetim creme (a sombra do fundo vem do sombreamento por vértice). */
+const COR_FORRO: Cor = COR.creme;
 
 export function moldarCaixa(q: Qualidade): CaixaPronta {
   const pronta = cache.get(q.nivel);
@@ -162,19 +177,37 @@ export function moldarCaixa(q: Qualidade): CaixaPronta {
       { f: arco(a - rb, rb, rb, -Math.PI / 2, 0), peso: 0.12, cor: 0.95 },
       { f: (t) => [a, rb + (ALTURA - rb - PAREDE / 2) * t], peso: 1.2, cor: 1 },
       { f: arco(a - PAREDE / 2, ALTURA - PAREDE / 2, PAREDE / 2, 0, Math.PI), peso: 0.1, cor: 0.9 },
-      { f: (t) => [a - PAREDE, ALTURA - PAREDE / 2 - (ALTURA - PAREDE / 2 - 0.006) * t], peso: 1.0, cor: 0.42 },
-      { f: (t) => [(a - PAREDE) * (1 - t), 0.006], peso: 0.5, cor: 0.3, plano: true },
     ],
     nu,
-    div(q, 40, 20),
+    div(q, 26, 14),
     CANTO,
     1,
   );
-  // escurece o fundo de dentro em direção aos cantos (a luz não chega lá)
-  papelCorpo.sombrear((p) => (p.y < ALTURA - 0.01 && Math.max(Math.abs(p.x), Math.abs(p.z)) < a - PAREDE * 0.5 ? 0.75 + 0.25 * (p.y / ALTURA) : 1));
+
+  // forro de cetim creme por dentro (vai na malha do cetim, junto com as fitas: a mesma chamada de desenho)
+  const fitaCorpo = new Molde();
+  casca(
+    fitaCorpo,
+    [
+      { f: (t) => [a - PAREDE, ALTURA - PAREDE / 2 - (ALTURA - PAREDE / 2 - 0.006) * t], peso: 1.0, cor: 0.9 },
+      { f: (t) => [(a - PAREDE) * (1 - t), 0.006], peso: 0.5, cor: 0.62, plano: true },
+    ],
+    nu,
+    div(q, 16, 8),
+    CANTO,
+    3,
+    COR_FORRO,
+    true,
+    1,
+  );
+  // escurece o forro para o fundo e para os cantos (a luz entra pela boca e morre lá embaixo), sem apagar:
+  // aberta, a caixa mostra uma boca clara e quente
+  fitaCorpo.sombrear((p) => {
+    const canto = Math.min(a - Math.abs(p.x), a - Math.abs(p.z));
+    return (0.5 + 0.5 * (p.y / ALTURA)) * (0.75 + 0.25 * Math.min(1, canto / 0.05));
+  });
 
   // fitas do corpo: quatro tiras verticais no meio de cada lado (continuam as da tampa)
-  const fitaCorpo = new Molde();
   const n = div(q, 10, 4);
   for (const [dx, dz] of [
     [0, 1],
@@ -193,7 +226,7 @@ export function moldarCaixa(q: Qualidade): CaixaPronta {
     // por baixo, a fita dobra para o fundo
     caminho.unshift(new THREE.Vector3(dx * (a - 0.02), -0.0012, dz * (a - 0.02)));
     lado.unshift(ladoDir);
-    fitaPlana(fitaCorpo, caminho, lado, FITA, VERMELHO_FITA, [0, 0.36, 0, 0], 0.14);
+    fitaPlana(fitaCorpo, caminho, lado, FITA, COR_FITA, [0, 0.36, 0, 0], 0.14);
   }
 
   /* ------------------------------------------------------------------ tampa */
@@ -204,21 +237,37 @@ export function moldarCaixa(q: Qualidade): CaixaPronta {
   casca(
     papelTampa,
     [
-      { f: (t) => [(at - rb) * (1 - t), topo], peso: 0.5, cor: 1, plano: true },
+      { f: (t) => [(at - rb) * t, topo], peso: 0.5, cor: 1, plano: true },
       { f: arco(at - rb, topo - rb, rb, Math.PI / 2, 0), peso: 0.12, cor: 1 },
       { f: (t) => [at, topo - rb - (topo - rb - baixo - PAREDE / 2) * t], peso: 0.5, cor: 1 },
       { f: arco(at - PAREDE / 2, baixo + PAREDE / 2, PAREDE / 2, 0, -Math.PI), peso: 0.1, cor: 0.85 },
-      { f: (t) => [at - PAREDE, baixo + PAREDE / 2 + (topo - PAREDE - baixo - PAREDE / 2) * t], peso: 0.5, cor: 0.45 },
-      { f: (t) => [(at - PAREDE) * t, topo - PAREDE], peso: 0.5, cor: 0.35, plano: true },
     ],
     nu,
-    div(q, 28, 14),
+    div(q, 20, 10),
     CANTO + FOLGA,
     2,
   );
 
-  // fita da tampa: duas voltas em cruz que sobem pelas laterais e passam por cima
+  // por dentro da tampa: o mesmo papel, na sombra (ela bascula para trás e fica de fundo para o presente
+  // que sobe: escura, ela destaca o presente em vez de competir com ele)
+  casca(
+    papelTampa,
+    [
+      { f: (t) => [at - PAREDE, baixo + PAREDE / 2 + (topo - PAREDE - baixo - PAREDE / 2) * t], peso: 0.5, cor: 0.5 },
+      // da borda para o centro (o perfil é contínuo: sem fileira de ligação atravessando o tampo)
+      { f: (t) => [(at - PAREDE) * (1 - t), topo - PAREDE], peso: 0.5, cor: 0.42, plano: true },
+    ],
+    nu,
+    div(q, 10, 6),
+    CANTO + FOLGA,
+    4,
+    [1, 1, 1],
+    false,
+    -1,
+  );
+
   const fitaTampa = new Molde();
+  // fita da tampa: duas voltas em cruz que sobem pelas laterais e passam por cima
   const volta = (eixo: 'x' | 'z') => {
     const caminho: THREE.Vector3[] = [];
     const lado: THREE.Vector3[] = [];
@@ -242,19 +291,34 @@ export function moldarCaixa(q: Qualidade): CaixaPronta {
       por(m - rc + rc * Math.sin(ang), yt - rc + rc * Math.cos(ang));
     }
     for (let i = 1; i <= 3; i++) por(m, yt - rc - ((yt - rc - baixo - 0.001) * i) / 3);
-    fitaPlana(fitaTampa, caminho, lado, FITA, VERMELHO_FITA, [0, 0.36, 0, 0], 0.14);
+    fitaPlana(fitaTampa, caminho, lado, FITA, COR_FITA, [0, 0.36, 0, 0], 0.14);
   };
   volta('x');
   volta('z');
   // laço volumoso, duplo, deitado para trás sobre o cruzamento (mostra a face larga das alças)
+  const lacoM = new Molde();
   laco(
-    fitaTampa,
+    lacoM,
     { largura: 0.3, fita: FITA * 1.25, pontas: 0.5, queda: 0.15, duplo: true, cheio: 0.55, inclina: 0.5, ladrilho: 0.14, k: q.k },
     17,
     new THREE.Matrix4().makeTranslation(0, topo + 0.01, 0.004).multiply(new THREE.Matrix4().makeRotationY(0.18)).multiply(new THREE.Matrix4().makeRotationX(-0.62)),
-    VERMELHO_FITA,
+    COR_FITA,
     [0, 0.36, 0, 0],
   );
+  // as pontas do laço caem e atravessavam o tampo (apareciam por dentro quando a tampa abre): o que fica
+  // abaixo do tampo, dentro da tampa, deita sobre ele, como fita assentada
+  const piso = topo + 0.0035;
+  for (let i = 0; i < lacoM.vertices; i++) {
+    const x = lacoM.pos[i * 3];
+    const z = lacoM.pos[i * 3 + 2];
+    if (lacoM.pos[i * 3 + 1] < piso && Math.abs(x) < at + 0.004 && Math.abs(z) < at + 0.004) {
+      lacoM.pos[i * 3 + 1] = piso;
+      lacoM.nor[i * 3] *= 0.3;
+      lacoM.nor[i * 3 + 2] *= 0.3;
+      lacoM.nor[i * 3 + 1] = Math.sign(lacoM.nor[i * 3 + 1] || 1) * 0.95;
+    }
+  }
+  fitaTampa.absorver(lacoM);
 
   const altLaco = fitaTampa.caixa().max.y;
   const caixa: CaixaPronta = {
@@ -269,6 +333,7 @@ export function moldarCaixa(q: Qualidade): CaixaPronta {
     lado: LADO,
     alturaCorpo: ALTURA,
     alturaTotal: ALTURA + altLaco,
+    meiaTampa: at,
   };
   cache.set(q.nivel, caixa);
   return caixa;

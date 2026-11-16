@@ -15,9 +15,9 @@ import type { Stage } from '../engine/Stage';
 import { GiftPicker, GIFTS, type GiftDef } from '../gifts/giftCatalog';
 import { FAREWELLS, fill, GREETINGS, MAIN_LINE, PhrasePicker, REVEALS, speakableName, type Phrase } from '../santa/phrases';
 import type { Cast, GiftBox, SantaRig, VillageSet } from '../world/contracts';
-import { Agenda, avaliar, novoQuadro, type FaseId, type Quadro } from './agenda';
-import type { Caminhante } from './caminhante';
-import { FALA_SOLTA_S, PRESENTE } from './config';
+import { Agenda, avaliar, janela, novoQuadro, rampa, type FaseId, type Quadro } from './agenda';
+import { difAngulo, type Caminhante } from './caminhante';
+import { direcaoDosPassos, escalaDoPresente, FALA_SOLTA_S, PRESENTE } from './config';
 import { descartarObjeto } from './descarte';
 import type { Hud3D } from './hud';
 
@@ -36,6 +36,10 @@ export interface DepsEntrega {
   vozLigada: () => boolean;
   /** Falar o nome do visitante na voz. */
   falarNomes: () => boolean;
+  /** Posição da câmera do jogo (o presente chega às mãos de frente para ela; a festa anda na direção dela). */
+  camera: readonly [number, number, number];
+  /** Força sempre o mesmo presente (id do catálogo; ?presente= para fotografar cada um). */
+  presenteFixo?: string | null;
 }
 
 /** Quanto o relógio pode esperar a voz, no total, por fase (s). */
@@ -48,6 +52,10 @@ interface Preparo {
   tampaY: number;
   tampaRx: number;
   tampaRz: number;
+  /** Escala própria do presente (config.ts ESCALA_PRESENTE). */
+  escala: number;
+  /** Meias medidas do presente na escala 1 (m): largura (x), altura (y) e fundura (z). */
+  meio: THREE.Vector3;
 }
 
 /** Textura do halo: um degradê redondo, quente, que some nas bordas (feita uma vez). */
@@ -99,6 +107,17 @@ export class Entrega3D {
   private vozToken = 0;
   private textoSaudacao = '';
   private textoDespedida = '';
+  /** Frases sorteadas (a voz usa o id delas: as gravações do dono em public/audio/voz/ tocam no lugar da voz sintética). */
+  private fraseSaudacao: Phrase | null = null;
+  private fraseDespedida: Phrase | null = null;
+  /** Giro em que o presente chega às mãos (de frente para a câmera), fixado quando a descida começa. */
+  private giroAlvo = NaN;
+  /** O presente cresce nas mãos na festa e fica grande até sair de cena. */
+  private crescer = 0;
+  /** Passinhos da festa já andados (m). */
+  private andouNaFesta = 0;
+  /** Zoom da câmera no momento da revelação (0 a 1): main.ts aplica no fov. */
+  zoom = 0;
   /** O presente já chegou às mãos do visitante. */
   entregue = false;
   /** A última entrega terminou (o diretor lê e zera). */
@@ -117,6 +136,8 @@ export class Entrega3D {
   private readonly pCaixa = new THREE.Vector3();
   private readonly pRevela = new THREE.Vector3();
   private readonly paraCamera = new THREE.Vector3();
+  /** Para onde vão os passinhos da festa (config.ts direcaoDosPassos). */
+  private readonly dirPassos = new THREE.Vector3();
   /** Meio da caixa aberta (centro da área proibida das etiquetas). */
   private readonly pCaixaMeio = new THREE.Vector3();
   // temporários
@@ -128,7 +149,18 @@ export class Entrega3D {
    * para o rosto aparecer de três quartos em vez de ficar de costas.
    */
   readonly yawNaEntrega: number;
+  /** Para onde o visitante olha na festa: quase de frente para a câmera. */
+  private readonly yawNaFesta: number;
+  /** Giro (mundo) de quem olha para a câmera do ponto da entrega. */
+  private readonly yawCamera: number;
+  /** Na entrega a cabeça e o peito viram para o Noel: quanto (rad, relativo ao corpo). */
+  private readonly giroCabeca: number;
+  private readonly caixaMedida = new THREE.Box3();
 
+  /** Faixa da revelação: quem ganhou o quê, e se já está na tela. */
+  private faixaNome = '';
+  private faixaPresente = '';
+  private faixaAberta = false;
   /** Fala solta (fila vazia): tempo restante. */
   private solta = 0;
 
@@ -140,14 +172,17 @@ export class Entrega3D {
     santa.root.updateMatrixWorld(true);
     santa.sackMouth.getWorldPosition(this.pBoca);
     this.pRevela.copy(a.reveal);
-    const cam = set.look.camera.position;
+    const cam = deps.camera;
     this.paraCamera.set(cam[0] - a.delivery.position.x, 0, cam[2] - a.delivery.position.z).normalize();
     const paraNoel = a.delivery.yaw;
     const paraCam = Math.atan2(this.paraCamera.x, this.paraCamera.z);
-    let d = paraCam - paraNoel;
-    while (d > Math.PI) d -= Math.PI * 2;
-    while (d < -Math.PI) d += Math.PI * 2;
+    this.yawCamera = paraCam;
+    direcaoDosPassos(a.delivery.position, cam, this.dirPassos);
+    const d = difAngulo(paraNoel, paraCam);
     this.yawNaEntrega = paraNoel + d * PRESENTE.olharCamera;
+    this.yawNaFesta = paraNoel + d * PRESENTE.olharCameraNaFesta;
+    // o corpo "roubou" d x olharCamera para a câmera; a cabeça e o peito devolvem parte disso para o Noel
+    this.giroCabeca = -d * PRESENTE.olharCamera * PRESENTE.cabecaParaNoel;
     this.pCaixa
       .copy(a.santa.position)
       .lerp(a.delivery.position, PRESENTE.caixa.fracao)
@@ -208,17 +243,34 @@ export class Entrega3D {
     return this.q;
   }
 
+  /** A caixa e o presente da próxima entrega já estão montados. */
+  get preparado() {
+    return this.preparo !== null;
+  }
+
   /** Monta a caixa e o presente da próxima entrega antes da hora (escondidos), para não engasgar na chegada. */
   preparar() {
     if (this.preparo) return;
-    const def = this.presentes.pick();
+    const def = GIFTS.find((g) => g.id === this.deps.presenteFixo) ?? this.presentes.pick();
     const caixa = this.deps.cast.createGiftBox();
     const presente = this.deps.cast.createGift(def.id);
     caixa.root.visible = false;
     presente.visible = false;
     caixa.root.traverse((o) => (o.castShadow = true));
+    // medidas do presente na escala 1 (uma vez): as mãos do visitante encostam nos lados dele
+    presente.position.set(0, 0, 0);
+    presente.rotation.set(0, 0, 0);
+    presente.scale.setScalar(1);
+    presente.updateMatrixWorld(true);
+    this.caixaMedida.setFromObject(presente);
+    const meio = new THREE.Vector3(0.35, 0.35, 0.35);
+    if (!this.caixaMedida.isEmpty()) {
+      this.caixaMedida.getSize(meio).multiplyScalar(0.5);
+      // o modelo é centrado na origem, mas nem sempre simétrico: usa o lado maior
+      meio.set(Math.max(-this.caixaMedida.min.x, this.caixaMedida.max.x), Math.max(-this.caixaMedida.min.y, this.caixaMedida.max.y), Math.max(-this.caixaMedida.min.z, this.caixaMedida.max.z));
+    }
     this.deps.stage.scene.add(caixa.root, presente);
-    this.preparo = { def, caixa, presente, tampaY: caixa.lid.position.y, tampaRx: caixa.lid.rotation.x, tampaRz: caixa.lid.rotation.z };
+    this.preparo = { def, caixa, presente, tampaY: caixa.lid.position.y, tampaRx: caixa.lid.rotation.x, tampaRz: caixa.lid.rotation.z, escala: escalaDoPresente(def.id), meio };
     // compila os materiais em segundo plano (onde o navegador permitir)
     this.aquecer(caixa.root);
     this.aquecer(presente);
@@ -249,8 +301,13 @@ export class Entrega3D {
     this.entregue = false;
     this.terminou = false;
     const nome = c.participante.nickname;
-    this.textoSaudacao = fill(this.frases.pick(GREETINGS).text, { nome });
-    this.textoDespedida = fill(this.frases.pick(FAREWELLS).text, { nome });
+    this.fraseSaudacao = this.frases.pick(GREETINGS);
+    this.fraseDespedida = this.frases.pick(FAREWELLS);
+    this.textoSaudacao = fill(this.fraseSaudacao.text, { nome });
+    this.textoDespedida = fill(this.fraseDespedida.text, { nome });
+    this.giroAlvo = NaN;
+    this.crescer = 0;
+    this.andouNaFesta = 0;
     c.poseDireta = true;
     this.deps.set.setDeliveryActive(true);
     this.solta = 0;
@@ -278,6 +335,8 @@ export class Entrega3D {
     this.faiscas.visible = false;
     hud.esconderBalao();
     hud.esconderFaixa();
+    this.faixaAberta = false;
+    this.faixaNome = '';
     set.setDeliveryActive(false);
     if (c) {
       c.poseDireta = false;
@@ -286,7 +345,13 @@ export class Entrega3D {
       c.alvoPose.jump = 0;
       c.alvoPose.hold = this.entregue ? 1 : 0;
       c.yawFixo = null;
+      c.rig.pose.turn = 0;
+      if (!this.entregue) {
+        c.rig.pose.holdWidth = undefined;
+        c.rig.pose.holdLift = undefined;
+      }
     }
+    this.zoom = 0;
     this.visitante = null;
     this.fase = null;
     this.terminou = true;
@@ -320,7 +385,7 @@ export class Entrega3D {
   }
 
   private aoEntrarNaFase(f: FaseId) {
-    const { audio, hud } = this.deps;
+    const { audio } = this.deps;
     const c = this.visitante!;
     const nome = c.participante.nickname;
     const falaNome = this.deps.falarNomes() ? speakableName(nome) : '';
@@ -330,9 +395,12 @@ export class Entrega3D {
       case 'chegada':
         audio.sfx.play('arrive');
         break;
-      case 'saudacao':
-        this.falar(this.textoSaudacao.split(nome).join(falaNome || 'meu amigo'), 'saudacao');
+      case 'saudacao': {
+        // a voz preenche a frase de novo com o nome falável (não troca pedaços do texto já preenchido)
+        const fr = this.fraseSaudacao!;
+        this.falar(fill(fr.text, { nome: falaNome || 'meu amigo' }), fr.id);
         break;
+      }
       case 'fala':
         this.falar(MAIN_LINE.text, MAIN_LINE.id);
         break;
@@ -352,15 +420,18 @@ export class Entrega3D {
         // a fala da revelação sai só na voz: na tela, quem conta é a faixa
         const frase = this.frases.pick(REVEALS);
         this.falar(fill(frase.text, { nome: falaNome || 'meu amigo', presente: def.spoken }), frase.id);
-        hud.mostrarFaixa(nome, def.name);
+        this.faixaNome = nome;
+        this.faixaPresente = def.name;
         break;
       }
       case 'entrega':
         break;
-      case 'festa':
+      case 'festa': {
         audio.sfx.play('jump');
-        this.falar(this.textoDespedida.split(nome).join(falaNome || 'meu amigo'), 'despedida');
+        const fr = this.fraseDespedida!;
+        this.falar(fill(fr.text, { nome: falaNome || 'meu amigo' }), fr.id);
         break;
+      }
     }
   }
 
@@ -427,14 +498,34 @@ export class Entrega3D {
     vp.hold = q.visitante.hold;
     vp.joy = q.visitante.joy;
     vp.jump = q.visitante.jump;
-    c.yawFixo = this.yawNaEntrega;
+    // na festa ele se vira para a câmera e mostra o presente para a live (o giro tem velocidade limitada); antes
+    // disso o corpo fica de três quartos e só a cabeça e o peito viram para o Noel
+    c.yawFixo = q.visitante.joy > 0.25 ? this.yawNaFesta : this.yawNaEntrega;
+    vp.turn = this.giroCabeca * rampa(this.t, 0, 0.45) * (1 - Math.min(1, q.visitante.joy * 1.6));
+    // na festa dá uns passinhos para a câmera (sai de cima do fundo da árvore e mostra o presente sobre o tapete)
+    const f = ag.f;
+    const andou = PRESENTE.passosNaFesta * rampa(this.t, f.festa.inicio + 0.1, Math.min(0.85, f.festa.duracao * 0.8));
+    if (andou !== this.andouNaFesta) {
+      c.andouFora += Math.abs(andou - this.andouNaFesta);
+      this.andouNaFesta = andou;
+      c.desvio.copy(this.dirPassos).multiplyScalar(andou);
+    }
+    // a câmera fecha devagar na revelação e volta na festa
+    this.zoom = janela(this.t, f.abre.inicio, f.festa.inicio + 0.35, 1.0, 0.9);
 
     // balão
     if (q.balao === 'saudacao') hud.mostrarBalao(this.textoSaudacao);
     else if (q.balao === 'fala') hud.mostrarBalao(MAIN_LINE.text);
     else if (q.balao === 'despedida') hud.mostrarBalao(this.textoDespedida);
     else hud.esconderBalao();
-    if (!q.faixa) hud.esconderFaixa();
+    // faixa "Fulano ganhou ...": segue a agenda (aparece um instante depois da abertura)
+    if (q.faixa && this.faixaNome) {
+      if (!this.faixaAberta) hud.mostrarFaixa(this.faixaNome, this.faixaPresente);
+      this.faixaAberta = true;
+    } else if (this.faixaAberta) {
+      hud.esconderFaixa();
+      this.faixaAberta = false;
+    }
 
     this.posicionarObjetos(q);
 
@@ -462,17 +553,22 @@ export class Entrega3D {
     }
 
     // presente: sobe da caixa, gira no alto, desce até as mãos e fica preso ao visitante
+    // nas mãos: maior na festa (o clímax precisa ler no celular) e de frente para a câmera
+    this.crescer = Math.max(this.crescer, q.visitante.joy);
+    const escalaMao = p.escala * (PRESENTE.escalaNaMao + (PRESENTE.escalaNaFesta - PRESENTE.escalaNaMao) * this.crescer);
     if (q.presente.naMao) {
       if (!this.entregue) {
         this.entregue = true;
         c.rig.giftAnchor.add(presente);
         presente.position.set(0, 0, 0);
-        presente.rotation.set(0, 0, 0);
-        presente.scale.setScalar(PRESENTE.escalaNaMao);
         presente.visible = true;
         c.presente = presente;
         c.presenteDescartar = () => descartarObjeto(presente);
       }
+      // o giro no mundo fica parado de frente para a câmera, mesmo com o corpo virando
+      presente.rotation.set(0, this.yawCamera - c.yaw, 0);
+      presente.scale.setScalar(escalaMao);
+      this.medidasNaMao(c, p, escalaMao, this.yawCamera - c.yaw);
     } else if (q.presente.visivel) {
       presente.visible = true;
       // de dentro da caixa (meio da altura dela) até o ponto da revelação
@@ -481,26 +577,40 @@ export class Entrega3D {
       this.v2.copy(this.pRevela);
       this.v2.y += Math.sin(this.t * 2.3) * 0.035 * q.presente.subida;
       presente.position.lerpVectors(this.v1, this.v2, q.presente.subida);
-      let escala = PRESENTE.escalaRevelacao * (0.25 + 0.75 * q.presente.subida);
+      let escala = p.escala * PRESENTE.escalaRevelacao * (0.25 + 0.75 * q.presente.subida);
+      let giro = q.presente.giro;
       if (q.presente.paraMao > 0) {
         c.rig.giftAnchor.getWorldPosition(this.v1);
         presente.position.lerp(this.v1, q.presente.paraMao);
-        escala += (PRESENTE.escalaNaMao - escala) * q.presente.paraMao;
+        escala += (escalaMao - escala) * q.presente.paraMao;
+        // desce girando cada vez mais devagar até ficar de frente para a câmera (a estrela não chega de perfil)
+        if (Number.isNaN(this.giroAlvo)) {
+          const volta = Math.PI * 2;
+          this.giroAlvo = this.yawCamera + volta * Math.ceil((giro - this.yawCamera) / volta);
+        }
+        const k = 1 - Math.pow(1 - q.presente.paraMao, 3);
+        giro += (this.giroAlvo - giro) * k;
+        this.medidasNaMao(c, p, escalaMao, this.yawCamera - c.yaw);
       }
       presente.scale.setScalar(escala);
-      presente.rotation.set(0, q.presente.giro, 0);
+      presente.rotation.set(0, giro, 0);
     } else {
       presente.visible = false;
     }
 
-    // halo contido, um pouco atrás do presente (do ponto de vista da câmera)
-    const brilho = q.presente.brilho;
+    // halo contido, um pouco atrás do presente (do ponto de vista da câmera). Nas mãos fica um halo mais fraco,
+    // que acompanha a alegria da festa: o presente nas mãos fica contra a árvore escura e sumia (o metal da estrela
+    // só reflete o ambiente). Os metais polidos pedem menos (userData.fatorHalo do presente).
+    const fator = typeof presente.userData.fatorHalo === 'number' ? (presente.userData.fatorHalo as number) : 1;
+    const naMao = q.presente.naMao ? PRESENTE.halo.naMao * q.visitante.joy : 0;
+    const brilho = Math.max(q.presente.brilho, naMao);
     this.halo.visible = brilho > 0.01 && presente.visible;
     if (this.halo.visible) {
       presente.getWorldPosition(this.halo.position);
       this.halo.position.addScaledVector(this.paraCamera, -0.25);
-      (this.halo.material as THREE.SpriteMaterial).opacity = brilho * PRESENTE.halo.opacidade;
-      this.halo.scale.setScalar(PRESENTE.halo.raio * 2 * (0.7 + 0.3 * q.presente.subida) * (1 - 0.5 * q.presente.paraMao));
+      (this.halo.material as THREE.SpriteMaterial).opacity = brilho * PRESENTE.halo.opacidade * Math.min(1, fator);
+      const raio = q.presente.naMao ? escalaMao * 1.25 : PRESENTE.halo.raio * 2 * (0.7 + 0.3 * q.presente.subida) * (1 - 0.5 * q.presente.paraMao);
+      this.halo.scale.setScalar(raio);
     }
 
     // faíscas da abertura: balísticas, somem em 1,2 s
@@ -518,6 +628,14 @@ export class Entrega3D {
       (this.faiscas.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
       this.matFaiscas.opacity = 0.85 * (1 - idade / 1.2);
     }
+  }
+
+  /** Diz ao gnomo a meia largura e a meia altura do presente que ele segura (as mãos encostam nos lados). */
+  private medidasNaMao(c: Caminhante, p: Preparo, escala: number, giroLocal: number) {
+    const cs = Math.abs(Math.cos(giroLocal));
+    const sn = Math.abs(Math.sin(giroLocal));
+    c.rig.pose.holdWidth = (p.meio.x * cs + p.meio.z * sn) * escala;
+    c.rig.pose.holdLift = p.meio.y * escala;
   }
 
   dispose() {

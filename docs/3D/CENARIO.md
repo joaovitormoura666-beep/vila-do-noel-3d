@@ -77,7 +77,7 @@ críticas; os pontos que ainda ficaram fracos estão no fim de cada `NOTAS.md`.
 9. **Acabamento (`LOOK`):** ACES, exposição 1,12, oclusão de raio 0,5, brilho 0,2 com limiar 1,0,
    vinheta marrom 0,36, separação quente e frio 0,16, granulado 0,1.
 
-Contagem (código em 16/11/2026, cabeçalho de `luzes.ts`): 11 luzes no total, 10 com a entrega apagada
+Contagem (código em 16/11/2026, cabeçalho de `luzes.ts`): 11 luzes no total, sempre (a entrega apagada fica com força zero)
 (três da lareira, uma da árvore e sete da sala: luar, hemisférica, lanterna, clarão do alto, poça do Noel,
 entrega e fila). Isso passa do teto de 10 luzes do `AGENTS.md` (seção 7), que registra a exceção. O
 comentário de `LUZ` em `ajustes.ts` ainda diz "dez no total". Sombras: 2 no nível alto (fogo e luar), 1 no

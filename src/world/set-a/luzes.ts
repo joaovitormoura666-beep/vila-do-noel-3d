@@ -13,7 +13,8 @@
  *   entrega      spot quente de cima sobre a área de entrega (setDeliveryActive), aceso aos poucos.
  *   fila         spot quente, largo e fraco do lado da câmera sobre o piso da fila (jogo 3D): os visitantes são
  *                vistos de costas e o fogo pega o outro lado deles; sem isto viram uma massa escura.
- * Total com as peças: 11 luzes (10 com a entrega apagada), duas com sombra (fogo e luar).
+ * Total com as peças: 11 luzes (o destaque da entrega conta sempre, mesmo apagado: força zero, para os programas
+ * não serem recompilados quando ele acende), duas com sombra (fogo e luar).
  */
 import * as THREE from 'three';
 import type { Level } from '../contracts';
@@ -143,13 +144,14 @@ export function criarLuzes(exterior: Exterior, direcaoDaLua: THREE.Vector3, cont
   /* ---------------------------------------------------------- luzes quentes */
   const preenchimento = new THREE.HemisphereLight(LUZ.preenchimento.ceu, LUZ.preenchimento.chao, LUZ.preenchimento.forca);
   preenchimento.name = 'preenchimento';
-  const lampiao = new THREE.PointLight(LUZ.lampiao.cor, LUZ.lampiao.forca, LUZ.lampiao.alcance, 1.6);
+  const lampiao = new THREE.PointLight(LUZ.lampiao.cor, LUZ.lampiao.forca, LUZ.lampiao.alcance, LUZ.lampiao.decaimento);
   lampiao.name = 'luz-do-lampiao';
   lampiao.position.copy(chamaDoLampiao);
   const rebatida = new THREE.PointLight(LUZ.rebatida.cor, LUZ.rebatida.forca, LUZ.rebatida.alcance, 1.1);
   rebatida.name = 'luz-rebatida-da-sala';
   rebatida.position.set(LUZ.rebatida.x, LUZ.rebatida.y, LUZ.rebatida.z);
   const entrega = new THREE.SpotLight(LUZ.entrega.cor, 0, 12, LUZ.entrega.angulo, 0.9, 1.2);
+  entrega.visible = true;
   entrega.name = 'destaque-da-entrega';
   const ancoras = criarAncoras();
   const pontoDaEntrega = ancoras.delivery.position;
@@ -207,8 +209,9 @@ export function criarLuzes(exterior: Exterior, direcaoDaLua: THREE.Vector3, cont
       // destaque da entrega: entra e sai em meio segundo
       forcaEntrega += (alvoEntrega - forcaEntrega) * (1 - Math.exp(-dt * 5));
       entrega.intensity = LUZ.entrega.forca * forcaEntrega;
-      // apagado, o destaque sai da conta de luzes (uma luz a menos em cada pixel na maior parte do tempo)
-      entrega.visible = forcaEntrega > 0.002;
+      // o destaque fica SEMPRE na conta de luzes (apagado = força zero): ligar e desligar a luz mudaria o número de
+      // luzes e o three.js recompilaria os programas de toda a cena, congelando a tela na primeira entrega
+      if (forcaEntrega < 0.002) entrega.intensity = 0;
     },
     setQuality(level) {
       nivel = level;

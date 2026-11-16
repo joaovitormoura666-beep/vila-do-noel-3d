@@ -1,7 +1,7 @@
 /**
  * PLANO DO ELENCO (lógica pura): quais visitantes já devem existir, quem entra em cena e em que ordem.
  *
- * - Na tela cabem `limite` pessoas esperando (o resto conta no "+N"). Além delas, as próximas `preaquecer`
+ * - Na tela cabem `limite` pessoas esperando (o resto aparece no contador do HUD, "N a caminho"). Além delas, as próximas `preaquecer`
  *   sementes são montadas com antecedência, fora de cena: montar um gnomo novo custa ~30 ms, então nunca se monta
  *   mais de um por quadro e, de preferência, antes de ele precisar aparecer.
  * - A entrada em cena respeita a ordem da fila: o próximo só entra quando o anterior já entrou.

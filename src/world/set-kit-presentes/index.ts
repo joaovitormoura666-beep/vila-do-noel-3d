@@ -6,14 +6,16 @@
  *   node tools/shot.cjs sala --param set=kit-presentes --param mostrar=um --param presente=sino ...    um de perto
  *   node tools/shot.cjs sala --param set=kit-presentes --param mostrar=caixa ...                      caixa fechada e aberta
  *   node tools/shot.cjs sala --param set=kit-presentes --param mostrar=varios --param presente=sino,bola,globo
+ *   node tools/shot.cjs sala --param set=kit-presentes --param mostrar=abertura ...                   a tampa abrindo em 4 tempos
  *
  * Parâmetros (só deste estúdio):
- *   mostrar=folha|um|varios|caixa   o que montar (padrão folha)
+ *   mostrar=folha|um|varios|caixa|abertura   o que montar (padrão folha)
  *   presente=id[,id...]             para "um" e "varios"
  *   giro=0.5                        giro dos presentes em Y, em radianos (padrão 0,45); girar=1 gira com o tempo
  *   escala=0.42                     escala dos presentes (o cubo de 1 m vira 42 cm, o tamanho de tela no jogo)
  *   olho=x,y,z,ax,ay,az,fov         câmera manual
- *   abrir=0.6                       quanto a tampa da caixa aberta subiu (0 a 1)
+ *   abrir=1                         quanto a caixa aberta abriu (0 a 1, por root.userData.abrir)
+ *   visual=0                        não aplica a escalaVisual de cada presente na folha
  *   rotulos=0                       esconde os nomes
  */
 import * as THREE from 'three';
@@ -100,6 +102,7 @@ export const buildVillageSet: BuildVillageSet = async (ctx) => {
   const girar = params.get('girar') === '1';
   const escala = num('escala', 0.42);
   const rotulos = params.get('rotulos') !== '0';
+  const visual = params.get('visual') !== '0';
 
   const catalogo = criarCatalogo(ctx);
   await catalogo.pronto;
@@ -132,7 +135,9 @@ export const buildVillageSet: BuildVillageSet = async (ctx) => {
       const lin = Math.floor(i / cols);
       const x = (col - (cols - 1) / 2) * dx;
       const y = 2.95 - lin * dy;
-      porPresente(def.id, x, y);
+      const g = porPresente(def.id, x, y);
+      // como o jogo deve mostrar: os finos um pouco maiores (userData.escalaVisual)
+      if (visual) g.scale.multiplyScalar((g.userData.escalaVisual as number | undefined) ?? 1);
       if (rotulos) {
         const e = etiqueta(def.name, 0.5, 0.07);
         e.position.set(x, y - 0.27, 0.25);
@@ -155,15 +160,29 @@ export const buildVillageSet: BuildVillageSet = async (ctx) => {
     const aberta = catalogo.createGiftBox();
     aberta.root.position.set(0.27, 0, -0.32);
     aberta.root.rotation.y = -0.35;
-    const abrir = num('abrir', 0.6);
-    aberta.lid.position.y += 0.32 * abrir;
-    aberta.lid.position.z += 0.08 * abrir;
-    aberta.lid.rotation.x = -0.55 * abrir;
+    (aberta.root.userData.abrir as (f: number) => void)(num('abrir', 1));
     root.add(fechada.root, aberta.root);
     // o presente saindo da caixa aberta
-    const g = porPresente(params.get('presente') ?? 'estrela', 0.27, 0.47, -0.32, 0.36);
+    const g = porPresente(params.get('presente') ?? 'estrela', 0.27, 0.5, -0.32, 0.36);
     g.rotation.y = 0.5;
-    camera = { fov: 30, position: [0, 1.5, 4.5], target: [0, 0.36, 0] };
+    camera = { fov: 30, position: [0, 1.5, 4.5], target: [0, 0.42, 0] };
+  } else if (mostrar === 'abertura') {
+    // a mesma caixa em quatro tempos da abertura (f = 0; 0,25; 0,5 e 1), em grade 2 x 2
+    [0, 0.25, 0.5, 1].forEach((f, i) => {
+      const cx = catalogo.createGiftBox();
+      const x = (i % 2 === 0 ? -1 : 1) * 0.4;
+      const y = i < 2 ? 1.3 : 0.12;
+      cx.root.position.set(x, y, 0);
+      cx.root.rotation.y = 0.35;
+      (cx.root.userData.abrir as (f: number) => void)(f);
+      root.add(cx.root);
+      if (rotulos) {
+        const e = etiqueta(`abrir(${f})`, 0.5, 0.07);
+        e.position.set(x, y - 0.1, 0.4);
+        root.add(e);
+      }
+    });
+    camera = { fov: 30, position: [0, 1.7, 5.3], target: [0, 0.86, 0] };
   }
 
   const peca: Peca = {

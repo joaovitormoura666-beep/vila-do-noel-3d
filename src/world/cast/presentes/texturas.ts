@@ -278,7 +278,6 @@ export const USO_ESTAMPA = 0.92;
 export const V_BRANCO = 0.985;
 
 const VERMELHO = '#B62835';
-const VERDE = '#174D3B';
 const DOURADO = '#E8BC65';
 const NEVE = '#F7F4EF';
 
@@ -495,7 +494,7 @@ export function mapaMeia(): THREE.DataTexture {
 }
 
 /**
- * Papel da caixa de presente (padrão original): verde-pinheiro com estrelinhas douradas de quatro pontas
+ * Papel da caixa de presente (padrão original): vermelho #B62835 com estrelinhas douradas de quatro pontas
  * desenhadas a pincel, pontinhos de neve e um losango fino dourado ligando tudo. Ladrilho de ~14 cm.
  */
 export function mapaPapelCaixa(): THREE.CanvasTexture {
@@ -504,11 +503,19 @@ export function mapaPapelCaixa(): THREE.CanvasTexture {
     const tela = document.createElement('canvas');
     tela.width = tela.height = tam;
     const c = tela.getContext('2d', { willReadFrequently: true })!;
-    c.fillStyle = VERDE;
+    // vermelho da paleta (contrasta com a árvore verde atrás da entrega), com um véu mais escuro em
+    // diagonal para o papel não ficar chapado
+    c.fillStyle = VERMELHO;
+    c.fillRect(0, 0, tam, tam);
+    const veu = c.createLinearGradient(0, 0, tam, tam);
+    veu.addColorStop(0, 'rgba(90,10,20,0.0)');
+    veu.addColorStop(0.5, 'rgba(90,10,20,0.16)');
+    veu.addColorStop(1, 'rgba(90,10,20,0.0)');
+    c.fillStyle = veu;
     c.fillRect(0, 0, tam, tam);
     const r = criarSorteio(131);
     // treliça fina em losango (linha dourada falhada)
-    c.strokeStyle = 'rgba(232,188,101,0.45)';
+    c.strokeStyle = 'rgba(232,188,101,0.38)';
     c.lineWidth = 2;
     for (let k = -2; k <= 2; k++) {
       for (const s of [1, -1]) {

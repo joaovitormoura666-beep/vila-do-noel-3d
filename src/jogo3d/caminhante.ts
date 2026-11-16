@@ -5,6 +5,8 @@
  *   do limite de quem está à frente.
  * - O passo acompanha a distância de verdade: a fase do passo avança `ds / (passo x peso)`, porque a amplitude
  *   da passada do gnomo cresce com o peso `walk` (o pé no chão anda junto com o piso, sem deslizar).
+ * - Longe do alvo, apressa o passo (ANDAR.pressa): as perninhas andam mais rápido, sempre presas à distância.
+ * - Pode sair um pouco do caminho (`desvio`, por exemplo os passinhos para a câmera na festa) andando de verdade.
  * - Gira o corpo para a direção do caminho com velocidade limitada; parado, gira para `yawParado`.
  * - As poses de expressão (lookUp, hold, joy, jump) recebem alvos e seguem suavizadas, para que cancelar uma
  *   entrega no meio não dê tranco.
@@ -51,6 +53,12 @@ export class Caminhante {
   /** Presente nas mãos (vai junto na saída e é descartado com o visitante). */
   presente: THREE.Object3D | null = null;
   presenteDescartar: (() => void) | null = null;
+  /** Deslocamento fora do caminho (m, no piso), somado à posição do caminho. */
+  readonly desvio = new THREE.Vector3();
+  /** Distância andada fora do caminho neste quadro (m): conta para o passo (quem mexe o `desvio` informa). */
+  andouFora = 0;
+  /** Parada no caminho de saída para mostrar o presente: em `s` metros, por `dur` segundos (null = sem parada). */
+  parada: { s: number; dur: number } | null = null;
   /** Encolhendo para sumir (limpar fila): 1 = inteiro, 0 = sumiu. */
   escala = 1;
   descartado = false;
@@ -68,6 +76,8 @@ export class Caminhante {
   colocar(trilho: Path3, s = 0) {
     this.trilho = trilho;
     this.s = s;
+    this.desvio.set(0, 0, 0);
+    this.parada = null;
     this.alvo = s;
     this.v = 0;
     trilho.at(s, this.rig.root.position);
@@ -77,7 +87,7 @@ export class Caminhante {
 
   /** Chegou ao alvo e parou. */
   get chegou() {
-    return this.alvo - this.s < 0.01 && this.v < 0.05;
+    return this.alvo - this.s < 0.01 && this.v < 0.05 && !this.parada;
   }
 
   /**
@@ -89,26 +99,42 @@ export class Caminhante {
     const trilho = this.trilho;
     let ds = 0;
     if (trilho && dt > 0) {
-      const fim = Math.min(this.alvo, limite, trilho.length);
+      // parada no meio do caminho (mostrar o presente): segura o alvo até o tempo acabar
+      const p = this.parada;
+      let alvo = this.alvo;
+      if (p) {
+        if (this.s >= p.s - 0.01 && this.v < 0.05) {
+          p.dur -= dt;
+          if (p.dur <= 0) this.parada = null;
+        }
+        if (this.parada) alvo = Math.min(alvo, p.s);
+      }
+      const fim = Math.min(alvo, limite, trilho.length);
       const falta = fim - this.s;
+      // longe do alvo apressa o passo (a fase continua presa à distância: não patina)
+      const pressa = 1 + (ANDAR.pressa - 1) * Math.min(1, Math.max(0, (falta - ANDAR.pressaDe) / (ANDAR.pressaAte - ANDAR.pressaDe)));
       // velocidade desejada: freia a tempo de parar no alvo (v² = 2·a·d)
-      const vDesejada = falta > 0.002 ? Math.min(vMax, Math.sqrt(2 * ANDAR.frenagem * falta)) : 0;
+      const vDesejada = falta > 0.002 ? Math.min(vMax * pressa, Math.sqrt(2 * ANDAR.frenagem * falta)) : 0;
       const a = vDesejada > this.v ? ANDAR.aceleracao : ANDAR.frenagem * 1.6;
       this.v += Math.max(-a * dt, Math.min(a * dt, vDesejada - this.v));
       if (this.v < 0) this.v = 0;
       ds = Math.min(this.v * dt, Math.max(0, falta));
       this.s += ds;
       trilho.at(this.s, rig.root.position);
+      rig.root.position.add(this.desvio);
     }
 
     // peso do andar: acompanha a velocidade (amplitude da passada) e a fase acompanha a distância
-    const wAlvo = Math.min(1, this.v / ANDAR.velocidadeNominal);
+    const fora = this.andouFora;
+    this.andouFora = 0;
+    const vEq = this.v + (dt > 0 ? fora / dt : 0);
+    const wAlvo = Math.min(1, vEq / ANDAR.velocidadeNominal);
     pose.walk += (wAlvo - pose.walk) * Math.min(1, dt * 8);
     if (pose.walk < 0.002) pose.walk = 0;
-    if (ds > 0) pose.phase += ds / (ANDAR.passoPorRadiano * Math.max(0.3, pose.walk));
+    if (ds + fora > 0) pose.phase += (ds + fora) / (ANDAR.passoPorRadiano * Math.max(0.3, pose.walk));
 
     // giro: na direção do caminho andando; parado, para o lado escolhido
-    this.parado = ds > 0.0005 ? 0 : this.parado + dt;
+    this.parado = ds + fora > 0.0005 ? 0 : this.parado + dt;
     let yawAlvo = this.yaw;
     if (this.yawFixo !== null) yawAlvo = this.yawFixo;
     else if (trilho && (this.v > 0.04 || this.parado < ANDAR.esperaParaVirar)) yawAlvo = trilho.yawAt(Math.min(trilho.length - 0.01, this.s + 0.05));

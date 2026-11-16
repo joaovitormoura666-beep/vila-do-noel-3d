@@ -86,6 +86,8 @@ export function foraDoTronco(p: THREE.Vector3, folga: number) {
  * um pouco por gravidade, em vez de afundar até o assento. Tabela calculada uma vez. */
 const RAIO_BARRA = 0.064;
 const N_BARRA = 256;
+/** Meia largura da barra em x: a do quadril com a coxa (0,215 + 0,178) mais uns 4 cm de folga do pano. */
+const LARGURA_BARRA = 0.43;
 const COXA_Q = [new THREE.Vector3(CORPO.quadril.x, CORPO.quadril.y, CORPO.quadril.z), new THREE.Vector3(-CORPO.quadril.x, CORPO.quadril.y, CORPO.quadril.z)];
 const COXA_J = [new THREE.Vector3(0.265, JOELHO_Y, 0.5), new THREE.Vector3(-0.265, JOELHO_Y, 0.5)];
 function rzBarra(c: number) {
@@ -113,7 +115,7 @@ const ALTURA_BARRA = (() => {
   const bruta = new Float32Array(N_BARRA);
   for (let i = 0; i < N_BARRA; i++) {
     const th = (i / N_BARRA) * Math.PI * 2;
-    bruta[i] = apoio(0.47 * Math.sin(th), -0.13 + rzBarra(Math.cos(th)) * Math.cos(th));
+    bruta[i] = apoio(LARGURA_BARRA * Math.sin(th), -0.13 + rzBarra(Math.cos(th)) * Math.cos(th));
   }
   // "fechamento" (máximo e depois mínimo numa janela): o pano faz ponte sobre os vãos mais estreitos
   // que a janela (entre as coxas), sem subir onde o apoio já é alto; depois um borrão suave
@@ -139,8 +141,11 @@ const ALTURA_BARRA = (() => {
       soma += w * fechada[(i + j + N_BARRA) % N_BARRA];
       peso += w;
     }
-    // a ponte cede um pouco no meio (gravidade), mas nunca afunda no apoio
-    final[i] = Math.max(bruta[i], soma / peso - 0.025) + RAIO_BARRA * 0.9;
+    // a ponte cede um pouco no meio (gravidade), mas nunca afunda no apoio; nos lados (|cos θ| pequeno) não há
+    // ponte nenhuma: o pano cai reto até o assento, em vez de formar um tubo suspenso ao lado das coxas
+    const ponte = Math.max(bruta[i], soma / peso - 0.025);
+    const lado = 1 - suave(0.15, 0.35, Math.abs(Math.cos((i / N_BARRA) * Math.PI * 2)));
+    final[i] = misturar(ponte, bruta[i], lado) + RAIO_BARRA * 0.9;
   }
   return final;
 })();
@@ -153,7 +158,7 @@ export function bainha(thetaBruto: number, out: THREE.Vector3) {
   const f = x - Math.floor(x);
   const y = ALTURA_BARRA[i] * (1 - f) + ALTURA_BARRA[(i + 1) % N_BARRA] * f;
   const c = Math.cos(th);
-  out.set(0.47 * Math.sin(th), y, -0.13 + rzBarra(c) * c);
+  out.set(LARGURA_BARRA * Math.sin(th), y, -0.13 + rzBarra(c) * c);
   return out;
 }
 

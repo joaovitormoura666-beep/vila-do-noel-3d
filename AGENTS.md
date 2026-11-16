@@ -150,6 +150,8 @@ Todos rodam na pasta do projeto (no Windows, no terminal do VS Code). Rode `npm 
 | `npm run pacotes` | Gera em `pacotes/` o back-end para a VM e o front-end para a Cloudflare. Também `npm run pacote:backend` e `npm run pacote:frontend`. |
 | `node tools/shot.cjs <cena> ...` | Fotografa uma cena do laboratório (veja `docs/3D/LABORATORIO.md`). |
 | `node tools/polyhaven.mjs ...` | Procura e baixa recursos CC0 do Poly Haven (veja `docs/3D/RECURSOS-E-LICENCAS.md`). |
+| `node tools/gravar-jogo3d.cjs ...` | Grava quadro a quadro um vídeo vertical do jogo 3D (MP4 com trilha e capa); uso no cabeçalho do arquivo. Precisa do laboratório ligado. |
+| `npx vite build -c vite.jogo3d.config.ts` | Gera em `dist-jogo3d/` a demonstração estática do jogo 3D (sem servidor, caminhos relativos, só os recursos que o jogo usa, listados em `vite.jogo3d.recursos.json`; refaça a lista com `node tools/listar-recursos-jogo3d.cjs`). |
 
 Endereços úteis com `npm run lab` ligado:
 
@@ -206,7 +208,9 @@ Meta: 60 FPS num PC comum com Windows e o OBS aberto. Números para o nível `al
 - Cenário sozinho: até cerca de 300 chamadas de desenho e 900 mil triângulos.
 - Até **duas luzes com sombra** (fogo e luar), mapas de até 2048; nenhuma sombra de luz pontual.
 - Até 10 luzes em tempo real no total. **Exceção registrada:** em 16/11/2026 a sala A tem 11 luzes com a
-  entrega acesa (10 com ela apagada), porque o jogo 3D acrescentou o spot de preenchimento da fila
+  entrega acesa ou apagada (desde a segunda rodada do jogo 3D o destaque da entrega fica sempre na conta, com
+  força zero quando apagado, para não recompilar os materiais na primeira entrega), porque o jogo 3D acrescentou
+  o spot de preenchimento da fila
   (`LUZ.fila` em `src/world/set-a/ajustes.ts`; cabeçalho de `src/world/set-a/luzes.ts`). Não acrescente
   outra luz sem tirar uma; se for preciso voltar a 10, combine com quem cuida da sala e fotografe a fila.
 - Objetos repetidos com `InstancedMesh`; geometria estática do mesmo material com `mergeGeometries`;

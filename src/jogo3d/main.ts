@@ -20,6 +20,8 @@
  *   ?velocidade=1.5 velocidade do jogo (padrão: a do painel)
  *   ?efeito=SLEIGH_PASS   pede um efeito ambiente no começo (lista separada por vírgula)
  *   ?pr=0.5         resolução fixa (captura); ?limpar descarta a fila guardada no navegador
+ *   ?fov=28&cam=x,y,z&alvo=x,y,z   ajuste fino da câmera do jogo (padrão: CAMERA_JOGO em config.ts)
+ *   ?presente=id    força o presente das entregas (estrela, bola, bengala...; para fotografar cada um)
  */
 import '@fontsource/fredoka/500.css';
 import '@fontsource/fredoka/600.css';
@@ -30,6 +32,7 @@ import { AMBIENT_EFFECTS, DEFAULT_AMBIENT, isAmbientEffect, type AmbientEffectId
 import type { Participant } from '../../shared/types';
 import { AmbientDirector } from '../ambient/AmbientDirector';
 import { AudioManager } from '../audio/AudioManager';
+import { semListaDoServidor } from '../audio/manifest';
 import { PerformanceMonitor } from '../effects/PerformanceMonitor';
 import { Stage } from '../engine/Stage';
 import { bus } from '../events/gameEvents';
@@ -40,6 +43,9 @@ import { STANDALONE } from '../standalone';
 import { buildCast } from '../world/cast/index';
 import type { Level } from '../world/contracts';
 import { buildVillageSet } from '../world/set/index';
+import { GIFTS } from '../gifts/giftCatalog';
+import { CAMERA_JOGO } from './config';
+import { descartarObjeto } from './descarte';
 import { CamadaNomes } from './CamadaNomes';
 import { DiretorFila3D } from './DiretorFila3D';
 import { Entrega3D } from './Entrega3D';
@@ -88,6 +94,13 @@ const OBS = params.has('obs');
 const MANUAL = params.get('manual') === '1';
 const SEMENTE = params.get('semente') ?? 'vila';
 const QUALIDADE: Level | null = ((q) => (q === 'alta' || q === 'media' || q === 'baixa' ? q : null))(params.get('q'));
+const DEMO = params.get('demo') === '1';
+
+/** Três números separados por vírgula (?cam=7,3.2,11), ou o padrão. */
+function vetor(k: string, padrao: readonly [number, number, number]): [number, number, number] {
+  const v = (params.get(k) ?? '').split(',').map(Number);
+  return v.length === 3 && v.every(Number.isFinite) ? [v[0], v[1], v[2]] : [padrao[0], padrao[1], padrao[2]];
+}
 
 async function carregarFontes() {
   try {
@@ -125,7 +138,10 @@ async function iniciar() {
     const ctx = { renderer: stage.renderer, level: nivelInicial };
     const set = await buildVillageSet(ctx);
     const cast = buildCast(ctx);
-    stage.applyLook(set.look, set.environment ?? null);
+    // câmera própria do jogo (mais fechada no Noel, a fila acima do chat); o laboratório segue com a da sala
+    const camera = { ...set.look.camera, fov: num('fov', CAMERA_JOGO.fov), position: vetor('cam', CAMERA_JOGO.position), target: vetor('alvo', CAMERA_JOGO.target) };
+    const fovBase = camera.fov;
+    stage.applyLook({ ...set.look, camera }, set.environment ?? null);
     stage.scene.add(set.root);
     set.setQuality(nivelInicial);
     cast.setQuality(nivelInicial);
@@ -140,6 +156,8 @@ async function iniciar() {
     if (MANUAL) settingsState.current = { ...settingsState.current, voiceEnabled: false, volumes: { ...settingsState.current.volumes, master: 0 } };
     if (params.has('velocidade')) settingsState.current = { ...settingsState.current, speed: Math.min(3, Math.max(0.5, num('velocidade', 1))), autoSpeed: false };
 
+    // sem servidor (captura e demonstração): não pede a lista de áudios (evita os 404 do console)
+    if (MANUAL || DEMO || STANDALONE) semListaDoServidor();
     const audio = new AudioManager();
     const hud = new Hud3D(stage.overlay, { obs: OBS });
     const sorteio = criarSorteio(`jogo:${SEMENTE}`);
@@ -154,10 +172,13 @@ async function iniciar() {
       velocidade: () => settingsState.effectiveSpeed,
       vozLigada: () => !MANUAL && settingsState.current.voiceEnabled,
       falarNomes: () => settingsState.current.speakNames,
+      camera: camera.position,
+      presenteFixo: params.get('presente'),
     });
     const diretor = new DiretorFila3D(stage.scene, set, cast, entrega, hud, audio, {
       guardar: !MANUAL,
       visiveis: params.has('visiveis') ? Math.round(num('visiveis', 11)) : null,
+      camera: camera.position,
     });
     const nomes = new CamadaNomes(stage, hud, set, santa, diretor, entrega);
     const simulador = new SimuladorDeVisitantes(SEMENTE);
@@ -165,17 +186,21 @@ async function iniciar() {
     const falasSoltas = new PhrasePicker(sorteio);
 
     /* ---------------------------------------------------------- qualidade */
+    // os gnomos em cena são trocados aos poucos (um por quadro, no orçamento do diretor), não todos no mesmo quadro
     const aplicarNivel = (level: Level) => {
       stage.setQuality(level);
       set.setQuality(level);
-      cast.setQuality(level);
+      cast.setQuality(level, true);
     };
     const perf = new PerformanceMonitor(aplicarNivel);
+    // o monitor começa no nível em que a página abriu (com ?q=baixa ele não "desce" para média)
+    perf.level = nivelInicial;
 
     const aplicarConfiguracoes = () => {
       const cfg = settingsState.current;
       hud.setDica(cfg.hintText);
-      if (!QUALIDADE && !MANUAL) perf.setMode(cfg.quality);
+      // ?q= vale mais que o painel; no modo de captura o monitor nem roda
+      if (!MANUAL) perf.setMode(QUALIDADE ?? cfg.quality);
       diretor.applySettings();
       audio.applySettings(cfg);
     };
@@ -265,7 +290,7 @@ async function iniciar() {
           },
         },
       );
-      if (params.get('demo') === '1' || STANDALONE) ligarDemo(false);
+      if (DEMO || STANDALONE) ligarDemo(false);
       else conn.connect();
       bus.on('queueResult', ({ participant, result }) => {
         conn?.send({ t: 'queueResult', eventId: participant.eventId, nickname: participant.nickname, result });
@@ -278,7 +303,7 @@ async function iniciar() {
         if (e.key === 'r' || e.key === 'R') diretor.join(simulador.participante());
         if (e.key === 'd' || e.key === 'D') (demo ? desligarDemo() : ligarDemo(false));
       });
-    } else if (params.get('demo') === '1') ligarDemo(false);
+    } else if (DEMO) ligarDemo(false);
     if (MANUAL && params.get('auto') === '1') simulador.ligar();
     if (!MANUAL && params.get('auto') === '0') simulador.desligar();
 
@@ -293,12 +318,23 @@ async function iniciar() {
     ensaio.root.position.set(set.anchors.delivery.position.x, -20, set.anchors.delivery.position.z);
     stage.scene.add(ensaio.root);
     entrega.preparar();
+    // os doze presentes montados e descartados uma vez: enchem o cache de cada tipo (a primeira montagem de alguns
+    // custa até 160 ms; depois, perto de zero) e compilam os programas deles
+    const amostras = GIFTS.map((g) => {
+      const o = cast.createGift(g.id);
+      o.position.set(set.anchors.delivery.position.x, -20, set.anchors.delivery.position.z);
+      stage.scene.add(o);
+      return o;
+    });
     stage.updateCamera(0);
+    // o destaque da entrega fica sempre na conta de luzes (aceso ou com força zero): os programas compilados aqui
+    // valem para a primeira entrega também (antes, acender a luz recompilava tudo e congelava a tela por segundos)
     try {
       stage.renderer.compile(stage.scene, stage.camera);
     } catch {
       /* compila no primeiro desenho */
     }
+    for (const o of amostras) descartarObjeto(o);
     ensaio.root.removeFromParent();
     ensaio.dispose();
 
@@ -313,6 +349,12 @@ async function iniciar() {
       set.update(dt, t);
       simulador.update(dt, diretor.esperandoTotal, (p) => diretor.join(p));
       entrega.update(dt);
+      // zoom lento da câmera na revelação (volta na festa)
+      const fov = fovBase - CAMERA_JOGO.zoomRevelacao * entrega.zoom;
+      if (Math.abs(stage.camera.fov - fov) > 1e-4) {
+        stage.camera.fov = fov;
+        stage.camera.updateProjectionMatrix();
+      }
       diretor.update(dt, t, true);
       santa.update(dt, t);
       stage.updateCamera(t);
@@ -353,7 +395,7 @@ async function iniciar() {
         presente: entrega.presenteAtual?.name ?? null,
         atendidos: st.served,
         velocidade: settingsState.effectiveSpeed,
-        ...(params.has('depurar') ? nomes.depurar() : {}),
+        ...(params.has('depurar') ? { ...nomes.depurar(), gnomos: diretor.depurar(stage) } : {}),
       };
     };
 

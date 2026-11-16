@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { Agenda, ROTEIRO, avaliar, novoQuadro, type FaseId } from '../src/jogo3d/agenda';
-import { ETIQUETAS, OPCOES, Posicionador, comEtiqueta, contarMaisN, dentro, sobrepoe, type AreaProibida, type PedidoEtiqueta } from '../src/jogo3d/etiquetas';
+import { ETIQUETAS, OPCOES, Posicionador, comEtiqueta, contarMaisN, dentro, perto, sobrepoe, type AreaProibida, type PedidoEtiqueta } from '../src/jogo3d/etiquetas';
 import { capacidadeDoCaminho, proximoAEntrar, proximoAMontar, sobrando } from '../src/jogo3d/elenco';
 import { criarSorteio, hashTexto } from '../src/jogo3d/sorteio';
 import { SimuladorDeVisitantes } from '../src/jogo3d/simulador';
@@ -115,7 +115,7 @@ describe('etiquetas de nome', () => {
   const pedido = (id: string, x: number, y: number, w = 200, h = 50): PedidoEtiqueta => ({ id, x, y, pes: y + 300, w, h });
   const area = (nome: string, l: number, t: number, r: number, b: number, ativa = true): AreaProibida => ({ nome, ativa, l, t, r, b });
 
-  it('só os primeiros da fila têm nome; o resto vai para o +N', () => {
+  it('só os primeiros da fila têm nome; o resto fica só no contador', () => {
     const fila = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     expect(comEtiqueta(fila)).toEqual(fila.slice(0, ETIQUETAS.maxFila));
     expect(ETIQUETAS.maxFila).toBeGreaterThanOrEqual(5);
@@ -142,10 +142,15 @@ describe('etiquetas de nome', () => {
   it('nunca cobre uma área proibida ativa (rosto do Noel, saco, entrega...)', () => {
     const p = new Posicionador();
     p.comecar();
-    const rosto = area('noel', 380, 780, 620, 900);
+    // o rosto bem em cima da cabeça: a etiqueta vai para o lado, sem se descolar da cabeça
+    const rosto = area('noel', 460, 820, 530, 900);
     const l = p.colocar(pedido('a', 500, 900), [rosto]);
     expect(l).not.toBeNull();
     expect(sobrepoe(l!, rosto)).toBe(false);
+    expect(perto(l!, pedido('a', 500, 900))).toBe(true);
+    // largo demais para contornar perto da cabeça: some, em vez de ir parar longe de quem ela nomeia
+    p.comecar();
+    expect(p.colocar(pedido('c', 500, 900), [area('noel', 300, 780, 700, 900)])).toBeNull();
     // inativa não atrapalha
     p.comecar();
     const l2 = p.colocar(pedido('b', 500, 900), [area('noel', 380, 780, 620, 900, false)]);
@@ -164,13 +169,14 @@ describe('etiquetas de nome', () => {
     const p = new Posicionador();
     p.comecar();
     const a = { ...p.colocar(pedido('a', 500, 900), [])! };
-    const b = { ...p.colocar(pedido('b', 520, 905), [])! };
+    const b = { ...p.colocar(pedido('b', 700, 905), [])! };
     expect(sobrepoe(a, b)).toBe(false);
+    expect(perto(b, pedido('b', 700, 905))).toBe(true);
     expect(dentro(a, ETIQUETAS.area)).toBe(true);
     expect(dentro(b, ETIQUETAS.area)).toBe(true);
   });
 
-  it('sem lugar válido, devolve null (a pessoa passa a contar no +N)', () => {
+  it('sem lugar válido, devolve null (a pessoa fica só no contador)', () => {
     const p = new Posicionador();
     p.comecar();
     const tudo = area('balao', 0, 0, 1080, 1920);
@@ -184,7 +190,7 @@ describe('etiquetas de nome', () => {
     const p = new Posicionador();
     p.comecar();
     // no primeiro quadro um obstáculo empurra a etiqueta para o lado
-    const obst = area('saco', 380, 800, 560, 860);
+    const obst = area('saco', 440, 800, 520, 860);
     const l1 = { ...p.colocar(pedido('a', 500, 900), [obst])! };
     expect(l1.opcao).not.toBe(0);
     // no quadro seguinte o obstáculo some, mas um deslocamento pequeno não vence a preferência

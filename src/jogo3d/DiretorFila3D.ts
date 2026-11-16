@@ -5,11 +5,17 @@
  *   montados com antecedência, fora de cena, no máximo um por quadro (elenco.ts), e entram em cena pelo começo
  *   do caminho da fila (fora da tela), andando, um de cada vez e na ordem da fila.
  * - Na tela ficam no máximo `limite` pessoas esperando (maxVisible do painel, até o que o caminho comporta); o
- *   resto conta no "+N".
+ *   resto aparece no contador do HUD ("N a caminho").
  * - Cada um anda até o seu lugar (frontGap + i x queueSpacing antes do fim do caminho) sem passar de quem está à
  *   frente; parado, vira o corpo entre o Noel e a câmera (não vira uma parede de costas).
  * - Com o Noel livre (e o painel sem pausa), o primeiro anda até a entrega e a sequência começa; no fim (ou com
- *   "Pular") ele sai pelo caminho de saída, que passa por trás da fila, e é descartado fora da tela.
+ *   "Pular") ele sai pelo caminho de saída, que passa por trás da fila, e é descartado fora da tela. Quem ganhou o
+ *   presente sai pelo "passeio": a festa já o levou uns passos para a câmera (sobre o tapete); ali ele para e mostra
+ *   o presente erguido (FILA3D.mostrar) e só então segue. O próximo pode vir andando, mas espera um instante antes
+ *   do cruzamento até quem sai passar.
+ * - Orçamento de um "trabalho pesado" por quadro (cada um custa de 20 a 100 ms): trocar a malha de um gnomo depois
+ *   de uma troca de qualidade, preparar a caixa e o presente da próxima entrega, ou montar um gnomo novo (com a fila
+ *   visível cheia, só em quadros alternados).
  * - "Limpar fila": quem espera encolhe e some (os que ainda não apareceram são descartados direto).
  */
 import * as THREE from 'three';
@@ -21,7 +27,7 @@ import { QueueManager } from '../queue/QueueManager';
 import { computeSpeed, settingsState } from '../settingsState';
 import type { Cast, VillageSet } from '../world/contracts';
 import { Caminhante } from './caminhante';
-import { ANDAR, FILA3D } from './config';
+import { ANDAR, direcaoDosPassos, FILA3D, PRESENTE } from './config';
 import { capacidadeDoCaminho, proximoAEntrar, proximoAMontar, sobrando } from './elenco';
 import type { Entrega3D } from './Entrega3D';
 import type { Hud3D } from './hud';
@@ -29,17 +35,37 @@ import type { Hud3D } from './hud';
 const STORAGE_KEY = 'vila-do-noel-3d:fila';
 const STORAGE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
+/** Limpa o apelido como o servidor (server/rules.ts cleanNickname): sem caracteres de controle, até 22 letras. */
+export function limparApelido(nome: unknown): string {
+  const s = String(nome ?? '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const letras = Array.from(s);
+  return letras.length > 22 ? letras.slice(0, 21).join('') + '…' : s || 'Visitante';
+}
+
 export interface OpcoesDiretor {
   /** Guarda a fila no navegador para sobreviver a um recarregamento (desligado no modo de captura). */
   guardar: boolean;
   /** Teto de visíveis forçado (?visiveis=N), ou null para seguir o painel. */
   visiveis: number | null;
+  /** Posição da câmera do jogo (para virar a fila e o passeio da saída para ela). */
+  camera: readonly [number, number, number];
 }
 
 export class DiretorFila3D {
   readonly queue: QueueManager;
   readonly trilhoFila: Path3;
   readonly trilhoSaida: Path3;
+  /** Saída de quem ganhou: começa no ponto do passeio (a festa já o levou para lá), para e mostra o presente. */
+  readonly trilhoSaidaPresente: Path3;
+  /** Onde fica a parada para mostrar o presente no caminho de saída de quem ganhou (m). */
+  readonly sMostrar: number;
+  /** Até onde (m no caminho de saída com presente) quem sai ainda cruza o caminho de quem vem para a entrega. */
+  private readonly sCruzamento: number;
+  private quadros = 0;
   /** Gnomos montados (em cena ou esperando a vez de entrar), por userId. */
   private readonly montados = new Map<string, Caminhante>();
   private readonly saindo: Caminhante[] = [];
@@ -76,9 +102,15 @@ export class DiretorFila3D {
     const a = set.anchors;
     this.trilhoFila = new Path3(a.queuePath);
     this.trilhoSaida = new Path3(a.exitPath);
+    // passeio: o ponto da entrega levado `passosNaFesta` metros para a câmera do jogo
+    const cam = opts.camera;
+    const para = direcaoDosPassos(a.delivery.position, cam, new THREE.Vector3()) as THREE.Vector3;
+    const passeio = a.delivery.position.clone().addScaledVector(para, PRESENTE.passosNaFesta);
+    this.trilhoSaidaPresente = new Path3([a.delivery.position.clone(), passeio, ...a.exitPath.slice(1).map((p) => p.clone())]);
+    this.sMostrar = PRESENTE.passosNaFesta;
+    this.sCruzamento = this.sMostrar + 1.05;
     this.capacidade = Math.min(FILA3D.tetoVisiveis, capacidadeDoCaminho(this.trilhoFila.length, a.frontGap, a.queueSpacing, FILA3D.inicioVisivel));
     this.yawNoel.copy(a.santa.position);
-    const cam = set.look.camera.position;
     this.camXZ.set(cam[0], 0, cam[2]);
     if (opts.guardar) this.restaurar();
   }
@@ -104,7 +136,9 @@ export class DiretorFila3D {
   }
 
   /** Tenta colocar alguém na fila (mesma regra do 2D: limite, duplicados, intervalo). */
-  join(p: Participant, direto = false) {
+  join(original: Participant, direto = false) {
+    // o apelido chega limpo do servidor, mas a fila guardada no navegador ou outra fonte pode trazer vazio
+    const p = original.nickname === limparApelido(original.nickname) ? original : { ...original, nickname: limparApelido(original.nickname) };
     const result = this.queue.enqueue(p);
     bus.emit('queueResult', { participant: p, result });
     if (result === 'aceito') {
@@ -169,9 +203,20 @@ export class DiretorFila3D {
     const L = this.trilhoFila.length;
     const limite = this.limite;
     let montou = false;
+    this.quadros++;
+
+    // 0. um trabalho pesado por quadro: troca de qualidade (um gnomo por vez) e a caixa com o presente do próximo
+    let orcamento = podeMontar;
+    if (orcamento && this.cast.stepQuality?.()) orcamento = false;
+    if (orcamento && !this.entrega.preparado && fila.length > 0) {
+      this.entrega.preparar();
+      orcamento = false;
+    }
+    // com a fila visível cheia, monta só em quadros alternados (montar custa mais que um quadro de 60 FPS)
+    if (orcamento && this.emCena.size >= limite && this.quadros % FILA3D.montarACadaCheia !== 0) orcamento = false;
 
     // 1. monta com antecedência (fora de cena) o próximo que vai precisar aparecer
-    if (podeMontar) {
+    if (orcamento) {
       const id = proximoAMontar(fila, this.montados, limite, FILA3D.preaquecer);
       if (id) {
         const entry = this.queue.waiting().find((e) => e.participant.userId === id);
@@ -218,7 +263,6 @@ export class DiretorFila3D {
         first.estado = 'indo';
         first.alvo = L;
         first.yawParado = null;
-        this.entrega.preparar();
         fila = this.esperando();
       }
     }
@@ -227,7 +271,13 @@ export class DiretorFila3D {
     const cur = this.atual;
     if (cur) {
       if (cur.estado === 'indo') {
-        cur.update(dt, t, vAndar);
+        // quem sai com o presente ainda vai cruzar o caminho: espera um instante antes do cruzamento
+        let limiteIndo = Infinity;
+        for (let i = 0; i < this.saindo.length; i++) {
+          const c = this.saindo[i];
+          if (c.trilho === this.trilhoSaidaPresente && c.s < this.sCruzamento) limiteIndo = L - 1.0;
+        }
+        cur.update(dt, t, vAndar, limiteIndo);
         if (cur.chegou && cur.s >= L - 0.02) {
           cur.estado = 'entrega';
           cur.yawFixo = this.entrega.yawNaEntrega;
@@ -261,6 +311,14 @@ export class DiretorFila3D {
     // 6. quem saiu vai embora pelo caminho de saída e é descartado fora da tela
     for (let i = this.saindo.length - 1; i >= 0; i--) {
       const c = this.saindo[i];
+      // na parada do passeio: de frente para a câmera, presente erguido, ainda contente
+      if (c.parada) {
+        c.yawFixo = this.yawParaCamera(c);
+        c.alvoPose.joy = 0.4;
+      } else if (c.yawFixo !== null) {
+        c.yawFixo = null;
+        c.alvoPose.joy = 0;
+      }
       // se há gente demais saindo, os mais antigos apertam o passo
       const pressa = this.saindo.length - i > FILA3D.saindoMax ? 1.8 : 1;
       c.update(dt, t, ANDAR.velocidadeSaida * Math.min(speed, ANDAR.aceleracaoMaxima) * pressa);
@@ -318,6 +376,11 @@ export class DiretorFila3D {
     return paraNoel + d * FILA3D.viradaParaCamera;
   }
 
+  private yawParaCamera(c: Caminhante): number {
+    const p = c.rig.root.position;
+    return Math.atan2(this.camXZ.x - p.x, this.camXZ.z - p.z);
+  }
+
   /** Tira da fila e manda embora pelo caminho de saída. */
   private liberar(c: Caminhante, servido: boolean) {
     if (servido) {
@@ -333,9 +396,20 @@ export class DiretorFila3D {
     c.yawParado = null;
     c.poseDireta = false;
     c.alvoPose.hold = c.presente ? 1 : 0;
-    c.colocar(this.trilhoSaida, 0);
-    c.yaw = this.trilhoSaida.yawAt(0.05);
-    c.alvo = this.trilhoSaida.length;
+    if (c.presente) {
+      // a festa já o levou ao ponto do passeio: para ali, mostra o presente para a live e segue
+      const yaw = c.yaw;
+      c.colocar(this.trilhoSaidaPresente, this.sMostrar);
+      // continua virado como estava na festa (de frente para a câmera), sem tranco
+      c.yaw = yaw;
+      c.rig.root.rotation.y = yaw;
+      c.parada = { s: this.sMostrar, dur: FILA3D.mostrar };
+      c.alvo = this.trilhoSaidaPresente.length;
+    } else {
+      c.colocar(this.trilhoSaida, 0);
+      c.yaw = this.trilhoSaida.yawAt(0.05);
+      c.alvo = this.trilhoSaida.length;
+    }
     this.saindo.push(c);
     this.agendarGravacao();
   }
@@ -349,6 +423,29 @@ export class DiretorFila3D {
       if (!c || !c.emCena) break;
       out.push(c);
     }
+    return out;
+  }
+
+  /** Para as fotos (?depurar): onde cada gnomo está na tela (pés e cabeça, em pixels de projeto). */
+  depurar(stage: { project(v: THREE.Vector3, out?: { x: number; y: number; z: number }): { x: number; y: number; z: number } }) {
+    const v = new THREE.Vector3();
+    const um = (c: Caminhante, papel: string) => {
+      const pes = stage.project(c.rig.root.position);
+      c.rig.labelAnchor.getWorldPosition(v);
+      const cab = stage.project(v);
+      return { id: c.id, papel, estado: c.estado, s: Math.round(c.s * 100) / 100, pes: [Math.round(pes.x), Math.round(pes.y)], cabeca: [Math.round(cab.x), Math.round(cab.y)] };
+    };
+    const lista = [];
+    if (this.atual) lista.push(um(this.atual, 'atendido'));
+    for (const c of this.filaNaTela([])) lista.push(um(c, 'fila'));
+    for (const c of this.saindo) lista.push(um(c, 'saindo'));
+    return lista;
+  }
+
+  /** Quem está saindo, do mais recente para o mais antigo. */
+  saindoNaTela(out: Caminhante[]): Caminhante[] {
+    out.length = 0;
+    for (let i = this.saindo.length - 1; i >= 0; i--) out.push(this.saindo[i]);
     return out;
   }
 

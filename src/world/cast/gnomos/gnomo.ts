@@ -65,6 +65,9 @@ export interface GnomoMontado extends VisitorRig {
 }
 
 /** Esfera que cobre o gnomo em qualquer pose (pulo, braços erguidos, presente e ponta do gorro). */
+/** Quanto cada segmento do gorro dobra para trás quando ele olha para cima (rad; soma cerca de 30 graus). */
+const DOBRA_OLHANDO = [-0.1, -0.16, -0.13, -0.08, -0.04];
+
 const ESFERA = new THREE.Sphere(new THREE.Vector3(0, 0.82, 0), 1.05);
 
 const tmpV = new THREE.Vector3();
@@ -262,6 +265,8 @@ export function montarGnomo(ap: Aparencia, modelo: Modelo, geometrias: Geometria
     const hold = limitar(pose.hold, 0, 1);
     const joy = limitar(pose.joy, 0, 1);
     const lu = limitar(pose.lookUp, 0, 1);
+    // giro opcional da cabeça e do peito (olhar alguém de lado sem virar o corpo inteiro)
+    const giro = limitar(pose.turn ?? 0, -1.2, 1.2);
     const cima = Math.max(hold, joy);
     const tt = t + r.fase;
     const parado = (1 - w) * (1 - cima);
@@ -301,17 +306,17 @@ export function montarGnomo(ap: Aparencia, modelo: Modelo, geometrias: Geometria
     const quadril = ossos[O.QUADRIL];
     quadril.rotation.set(0, Math.sin(ph) * 0.12 * w + olhada * 0.15, 0);
     const barriga = ossos[O.BARRIGA];
-    barriga.rotation.set(0.05 * w - 0.05 * joy, -Math.sin(ph) * 0.06 * w + olhada * 0.2, 0);
+    barriga.rotation.set(0.05 * w - 0.05 * joy, -Math.sin(ph) * 0.06 * w + olhada * 0.2 + giro * 0.2, 0);
     if (dt > 0) molaBarriga.passo(dt, limitar(-acelY * 0.0016 - w * (1 - passo) * 0.02, -0.08, 0.08), 0);
     const jig = molaBarriga.x;
     barriga.scale.set(1 - jig * 0.5, 1 + jig, 1 - jig * 0.5);
     const peito = ossos[O.PEITO];
-    peito.rotation.set(-0.1 * joy - 0.06 * hold, olhada * 0.12, -raiz.rotation.z * 0.4);
+    peito.rotation.set(-0.1 * joy - 0.06 * hold, olhada * 0.12 + giro * 0.3, -raiz.rotation.z * 0.4);
     peito.scale.set((1 + 0.01 * resp) / (1 - jig * 0.5), (1 + 0.014 * resp) / (1 + jig), (1 + 0.014 * resp) / (1 - jig * 0.5));
 
     /* cabeça e rosto */
     const cab = ossos[O.CABECA];
-    const olhaVolta = parado * (0.2 * Math.sin(tt * 0.31) + 0.08 * Math.sin(tt * 0.83 + 1)) + olhada * 0.75;
+    const olhaVolta = parado * (0.2 * Math.sin(tt * 0.31) + 0.08 * Math.sin(tt * 0.83 + 1)) + olhada * 0.75 + giro * 0.5;
     cab.rotation.set(-0.45 * lu - 0.08 * joy + 0.04 * Math.sin(ph * 2) * w + parado * 0.03 * Math.sin(tt * 0.5) - Math.abs(olhada) * 0.08, olhaVolta, -raiz.rotation.z * 0.55 + parado * 0.05 * Math.sin(tt * 0.23 + 2) + joy * 0.07 * Math.sin(t * 3) + olhada * 0.1);
     // olhos: sacadas rápidas entre alvos sorteados pelo tempo (e para o lado da olhada)
     const per = 1.4 + (h % 100) / 100;
@@ -371,7 +376,8 @@ export function montarGnomo(ap: Aparencia, modelo: Modelo, geometrias: Geometria
     mPeito.copy(raiz.matrix).multiply(quadril.matrix).multiply(barriga.matrix).multiply(peito.matrix);
     mPeitoInv.copy(mPeito).invert();
     // o presente: acima da cabeça, sem herdar o esticar e achatar do pulo
-    presenteRoot.set(raiz.position.x, raiz.position.y + modelo.presente.y * escBase, modelo.presente.z * escBase);
+    // (holdLift: o presente sobe a meia altura dele, para a base assentar no gorro em vez de atravessá-lo)
+    presenteRoot.set(raiz.position.x, raiz.position.y + modelo.presente.y * escBase + (pose.holdLift ?? 0) * hold, modelo.presente.z * escBase);
     giftAnchor.position.copy(presenteRoot);
     for (const l of ladoBraco) {
       const s = l.s;
@@ -393,8 +399,10 @@ export function montarGnomo(ap: Aparencia, modelo: Modelo, geometrias: Geometria
       const a = joy * (1 - hold);
       alvoE.lerp(alvoTmp, a);
       poloE.lerp(poloTmp, a);
-      // segurando: mãos nos lados do presente, um pouco abaixo do meio
-      alvoTmp.set(presenteRoot.x + s * 0.235 * escBase, presenteRoot.y - 0.06 * escBase, presenteRoot.z + 0.01);
+      // segurando: mãos nos lados do presente, um pouco abaixo do meio (holdWidth = meia largura do presente que ele
+      // segura; sem ela, a largura da caixa)
+      const meiaLargura = pose.holdWidth !== undefined ? pose.holdWidth + 0.02 : 0.235 * escBase;
+      alvoTmp.set(presenteRoot.x + s * meiaLargura, presenteRoot.y - 0.06 * escBase, presenteRoot.z + 0.01);
       poloTmp.set(s, -0.6, -0.25);
       alvoE.lerp(alvoTmp, hold);
       poloE.lerp(poloTmp, hold);
@@ -442,8 +450,10 @@ export function montarGnomo(ap: Aparencia, modelo: Modelo, geometrias: Geometria
       const gx = gl.z * 0.55 - acel.z * kA;
       const gz = -gl.x * 0.55 + acel.x * kA + brisa;
       const chicote = acel.y * 0.03;
-      // segurando o presente: o gorro dobra para trás, amassado sob a caixa
+      // segurando o presente: o gorro dobra para trás, amassado sob a caixa; olhando para cima, o gorro cai para
+      // as costas (cerca de 30 graus), em vez de tombar para a frente e esconder o rosto
       const dobra = [-0.28, -0.66, -0.6, -0.4, -0.25];
+      const caiAtras = lu * (1 - hold);
       let ax = gx;
       let az = gz;
       for (let i = 0; i < molasG.length; i++) {
@@ -451,7 +461,7 @@ export function montarGnomo(ap: Aparencia, modelo: Modelo, geometrias: Geometria
         const mx = ax + curva.z * chicote * ponta;
         const mz = az - curva.x * chicote * ponta;
         molasG[i].passo(dt, mx, mz);
-        ossos[ossosG[i]].rotation.set(molasG[i].x * pesoG[i] + dobra[i] * hold, 0, molasG[i].z * pesoG[i]);
+        ossos[ossosG[i]].rotation.set(molasG[i].x * pesoG[i] + dobra[i] * hold + DOBRA_OLHANDO[i] * caiAtras, 0, molasG[i].z * pesoG[i]);
         ax = molasG[i].x * 1.1;
         az = molasG[i].z * 1.1;
       }
