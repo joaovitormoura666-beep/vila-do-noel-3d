@@ -193,14 +193,40 @@ O LIVE Studio é o programa do TikTok para fazer live pelo computador. O jeito m
 
 Outras opções no LIVE Studio:
 
-- **Fonte "Link" (página da internet):** em várias versões fica em **+ Adicionar fonte** (Add Source) →
-  **Link**. Se a sua tiver: use o endereço `http://localhost:3000/?obs` com o tamanho 1080x1920. Teste o
-  som: dependendo da versão, a voz sintetizada do Noel pode não funcionar nesse tipo de fonte
-  (a música e os efeitos funcionam).
+- **Fonte "Link" (página da internet):** fica em **Adicionar fonte → Link**, mas **não aceita
+  endereços do próprio PC**: com `http://localhost:3000/` e com `http://127.0.0.1:3000/?obs` ela
+  responde "Digite o URL correto" (visto no PC do dono em 16/11/2026). Só serviria com o jogo
+  publicado na internet (seção 11).
 - **Sem o `.bat`:** a janela que o botão **Abrir a tela do jogo** do painel abre também serve
   para a captura de janela. Nela, clique uma vez dentro da tela para ligar o som. Para uma
   janela sem avisos, abra o endereço `http://localhost:3000/?obs&janela=1`: nela o pedido de
   clique para o som aparece só no título da janela (fora da imagem) e some depois do clique.
+
+### Se a captura de janela ficar preta
+
+No PC do dono (16/11/2026), a fonte de captura de janela do LIVE Studio mostrou a prévia toda
+preta com a janela do Chrome. Isso acontece porque a aceleração de vídeo do Chrome e do Edge
+esconde a imagem de alguns tipos de captura. Tente, nesta ordem:
+
+1. Clique com o botão direito na fonte (por exemplo `chrome.exe`) e abra as configurações dela.
+   Confira se a janela escolhida é a **Vila do Noel Live** e, se houver uma opção de **método de
+   captura** ou **modo compatível**, troque e veja se a imagem aparece.
+2. Confira que a janela do jogo não está minimizada.
+3. **Caminho que sempre funciona: OBS Studio como câmera virtual.** O OBS desenha o jogo sozinho
+   (fonte de navegador, que aceita `localhost`) e o LIVE Studio recebe essa imagem como se fosse
+   uma câmera:
+   1. Instale o OBS Studio (gratuito, <https://obsproject.com>).
+   2. Em **Configurações → Vídeo**: resolução de base e de saída **1080x1920**.
+   3. Em **Fontes**, clique em **+ → Navegador**: URL `http://localhost:3000/?obs`, largura
+      **1080**, altura **1920**. **Não** marque "Controlar áudio via OBS": assim o som do jogo
+      sai pelo som do computador.
+   4. Clique em **Iniciar câmera virtual** (no canto de baixo, à direita).
+   5. No LIVE Studio, apague a fonte de captura de janela e adicione **Adicionar fonte → Câmera**,
+      escolhendo **OBS Virtual Camera**. Aumente até ocupar a tela toda.
+   6. **Som:** a câmera virtual leva só a imagem. Deixe ligado o **som do computador** na barra
+      de baixo do LIVE Studio. A voz sintetizada do Noel normalmente não funciona na fonte de
+      navegador do OBS (veja o Jeito B); a música e os efeitos funcionam.
+   7. Feche as outras telas do jogo (a do painel e a do `.bat`): só pode haver uma.
 
 ### Jeito B: OBS Studio com chave de transmissão
 
@@ -233,7 +259,8 @@ transmissão** (a chave muda; pegue a atual no TikTok antes de cada live).
 | Janela do `abrir-janela-da-live.bat` + captura de janela | Sim | Sim (vozes do Windows/Edge) | Não |
 | Janela do painel + captura de janela | Sim | Sim | Sim, uma vez dentro da tela |
 | OBS, fonte de navegador | Sim | Normalmente não (use frases gravadas) | Não |
-| LIVE Studio, fonte de página da internet | Sim | Depende da versão: teste | Teste |
+| OBS como câmera virtual + Câmera no LIVE Studio | Sim (pelo som do computador) | Normalmente não | Não |
+| LIVE Studio, fonte Link | Só com o jogo na internet (não aceita localhost) | Teste | Teste |
 
 Em todos os casos, o volume de cada som (geral, música, efeitos, voz) se ajusta no painel.
 
