@@ -25,3 +25,6 @@ lab/acervo/*.png
 # referências de estilo de obras de terceiros: só para consulta local, não publicar
 lab/referencia-clima.png
 lab/referencia-gnomo.png
+
+# marca do iniciar.bat enquanto instala e compila (some quando o servidor sobe)
+.vila-iniciando

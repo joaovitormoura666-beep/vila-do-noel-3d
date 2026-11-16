@@ -26,11 +26,14 @@ Resumo:
 O Node.js é o programa gratuito que faz o servidor do jogo funcionar.
 
 1. Abra <https://nodejs.org> no navegador.
-2. Baixe a versão **LTS** (a recomendada; hoje é a 22 ou mais nova).
+2. Baixe a versão **LTS** (a recomendada). Ela precisa ser a **22 ou mais nova**: a leitura da
+   live do TikTok não funciona com versões mais velhas. Em novembro de 2026 o site oferece a 24,
+   que serve.
 3. Abra o instalador e vá clicando em "Next"/"Avançar", aceitando o que ele sugerir.
 4. Pronto. Não precisa abrir nada depois.
 
-Se você esquecer este passo, o `iniciar.bat` avisa e abre o site do Node.js sozinho.
+Se você esquecer este passo, ou se o Node.js do computador for antigo, o `iniciar.bat` avisa e
+abre o site do Node.js sozinho.
 
 ## 2. Baixar o projeto
 
@@ -40,11 +43,21 @@ Escolha **um** destes jeitos:
   do projeto, clique no botão verde **Code** e depois em **Download ZIP**.
 - **Da pasta compartilhada do projeto:** baixe o arquivo `.zip` do código.
 
+Antes de extrair, **desbloqueie** o zip (isso evita um aviso de segurança em cada `.bat`):
+
+1. Clique com o botão direito no arquivo `.zip` e escolha **Propriedades**.
+2. Embaixo, na aba **Geral**, se aparecer a caixa **Desbloquear**, marque e clique em **OK**.
+   (Se a caixa não aparecer, tudo bem: siga em frente.)
+
 Depois **extraia** o zip (não dá para rodar de dentro dele):
 
 1. Clique com o botão direito no arquivo `.zip` e escolha **Extrair tudo...**.
-2. Escolha um lugar fácil, por exemplo a pasta **Documentos**, e clique em **Extrair**.
-3. Abra a pasta extraída. Dentro dela tem o arquivo `iniciar.bat`.
+2. Clique em **Procurar...**, escolha o disco **C:**, crie uma pasta nova chamada `VilaDoNoel`,
+   selecione essa pasta e clique em **Extrair**. Use uma pasta assim, fora de **Documentos** e
+   da **Área de Trabalho**: no Windows 11 essas duas costumam ficar dentro do **OneDrive**, e a
+   instalação (milhares de arquivos) fica lenta, pode dar erro e vai parar na nuvem.
+3. Abra a pasta extraída. Se dentro dela houver **só outra pasta com o mesmo nome** (o zip do
+   GitHub vem assim), entre nela. É ali que fica o arquivo `iniciar.bat`.
 
 **Para atualizar depois** (quando houver uma versão nova): baixe e extraia numa pasta nova.
 Se quiser manter as configurações do painel (inclusive o @ da live), copie a pasta `data`
@@ -53,10 +66,16 @@ da pasta antiga para a nova. Se você gravou frases ou música, copie também `p
 ## 3. Abrir o jogo: dois cliques no `iniciar.bat`
 
 1. Dê dois cliques em `iniciar.bat`.
-2. Se o Windows mostrar "O Windows protegeu o computador", clique em **Mais informações** e
-   depois em **Executar assim mesmo**. (Isso aparece porque o arquivo veio da internet.)
-3. Abre uma **janela preta**. Na primeira vez ela instala os componentes do jogo: leva alguns
-   minutos e precisa de internet. Nas outras vezes isso é pulado.
+2. O Windows pode mostrar um aviso, porque o arquivo veio da internet:
+   - "O Windows protegeu o computador" (tela azul): clique em **Mais informações** e depois em
+     **Executar assim mesmo**;
+   - "Aviso de Segurança - Abrir Arquivo" (janelinha com o botão **Executar**): clique em
+     **Executar**.
+   Se você desbloqueou o zip no passo 2, esses avisos normalmente não aparecem.
+3. Abre uma **janela preta** chamada "Vila do Noel - servidor (nao feche)". Na primeira vez
+   ela instala os componentes do jogo: leva alguns minutos e precisa de internet. Nas outras
+   vezes isso é pulado. **Não dê dois cliques no `iniciar.bat` de novo enquanto isso**: se der,
+   a segunda janela só avisa que a primeira já está preparando o jogo.
 4. Depois ela prepara o jogo (cerca de um minuto) e o **painel de controle** abre sozinho no
    seu navegador, no endereço <http://localhost:3000/painel.html>.
 
@@ -68,7 +87,11 @@ O que a janela preta já resolve sozinha:
 - Se o jogo **já estiver aberto**, ela só abre o painel de novo.
 - Se **outro programa** estiver usando a porta 3000, ela explica e pergunta se pode usar a
   porta 3100. Nesse caso, em todos os endereços deste documento troque `3000` por `3100`.
-- Se faltar o Node.js, ou se ele for antigo demais, ela explica e abre o site para baixar.
+- Se faltar o Node.js, ou se ele for antigo demais (antes do 22), ela explica e abre o site
+  para baixar.
+- Se o servidor parar por um erro no meio do caminho, ela pergunta **"Abrir o jogo de novo
+  agora?"**. Aperte **S**: o servidor volta em poucos segundos, e o painel e a tela do jogo
+  se reconectam sozinhos.
 
 ## 4. Testar com o simulador (antes de entrar ao vivo)
 
@@ -86,6 +109,13 @@ O que a janela preta já resolve sozinha:
      **Presente grande** do simulador, que acende um efeito como um presente caro da live.
 5. No topo do painel, o selo **Tela do jogo** precisa dizer que ela está aberta.
 
+**Uma escolha antes da primeira live: a espera para participar de novo.** No painel, no
+cartão **Ritmo**, o campo **Espera para participar de novo (s)** vem com **0**. Com 0, quem
+acabou de receber o presente pode digitar `!presente` de novo e voltar para o fim da fila na
+hora, e uma mesma pessoa pode ganhar várias vezes na mesma live. Se você preferir dar a vez
+para gente nova, coloque, por exemplo, **180** (3 minutos) ou **300** (5 minutos). É uma
+escolha sua (do ritmo da live); o valor fica salvo para as próximas vezes.
+
 ## 5. Ligar a leitura da live
 
 1. No painel, na parte **Live do TikTok**, escreva o **@ da sua conta** (a conta que vai fazer
@@ -95,20 +125,31 @@ O que a janela preta já resolve sozinha:
 
 | O selo diz | O que significa | O que fazer |
 | --- | --- | --- |
-| Esperando a live começar | O @ está certo, mas você ainda não está ao vivo. | Nada: pode conectar antes de começar a live. Quando a live começar, o jogo conecta sozinho (ele confere de novo a cada 30 segundos). |
+| Esperando a live começar | Você ainda não está ao vivo (ou o TikTok ainda não mostrou a live). A mensagem pode ser "não está ao vivo agora" ou "Ainda não encontrei a live": antes da live, as duas são normais. | Nada: quando a live começar, o jogo conecta sozinho (ele confere de novo a cada 30 segundos; depois de 10 minutos, a cada minuto). Para não esperar a próxima conferência, clique em **Conferir agora**. |
 | Ao vivo | O jogo está recebendo os comentários e os presentes. | Nada. |
-| Reconectando | A conexão caiu; o jogo tenta de novo sozinho. | Esperar. Se demorar, confira a internet. |
-| Precisa de atenção | Algo que não se resolve sozinho (por exemplo, @ escrito errado). | Ler a mensagem, corrigir e clicar em **Conectar** de novo. |
+| Reconectando | A conexão caiu; o jogo tenta de novo sozinho. | Esperar, ou clicar em **Conferir agora**. Se demorar, confira a internet. |
+| Precisa de atenção | Algo que não se resolve sozinho (por exemplo, @ escrito errado ou Node.js antigo). | Ler a mensagem, corrigir e clicar em **Conectar de novo**. |
+
+Cuidado com o botão grande ao lado do @: enquanto o jogo espera a live ou reconecta, ele diz
+**Desconectar** e **desliga** a leitura. Para tentar de novo na hora, use **Conferir agora**.
+
+**Clique em Conectar no máximo uns 10 minutos antes de começar a live.** Enquanto espera, cada
+conferência passa pelo serviço gratuito que libera a conexão (Euler Stream), que tem um limite
+de pedidos. Esperar a live por horas gasta esse limite à toa.
 
 **Se o selo continuar em "Esperando a live começar" depois que você já entrou ao vivo:**
 
-1. Espere um minuto: a conferência é feita de 30 em 30 segundos.
+1. Clique em **Conferir agora** (ou espere: a conferência é feita de 30 em 30 segundos).
 2. Confira se o @ escrito é exatamente o da conta que está ao vivo.
-3. Clique em **Conectar** de novo.
-4. Confira a internet do computador.
-5. Se nada disso resolver, o TikTok pode estar recusando a leitura naquele momento. O jogo
+3. Confira a internet do computador.
+4. Se nada disso resolver, o TikTok pode estar recusando a leitura naquele momento. O jogo
    continua funcionando: você pode colocar pessoas na fila pelo simulador do painel enquanto
    isso. A explicação técnica está em `docs/INTEGRACAO.md`.
+
+Os números embaixo do selo mostram o que está chegando da live: comentários, presentes,
+curtidas e quem entrou na fila. Logo abaixo ficam seguidores, compartilhamentos e efeitos
+pedidos por presentes. Na primeira live, olhe se esses números sobem: é o jeito de confirmar
+que cada tipo de evento está chegando.
 
 Como as pessoas entram na fila durante a live:
 
@@ -126,27 +167,34 @@ Há dois jeitos. Use o que a sua conta do TikTok permitir.
 O LIVE Studio é o programa do TikTok para fazer live pelo computador. O jeito mais seguro é ele
 **capturar uma janela** com a tela do jogo.
 
-1. Com o jogo aberto (janela preta aberta), dê dois cliques em **`abrir-janela-da-live.bat`**.
+1. **Feche a janela do jogo que você abriu pelo painel no passo 4.** Só pode ficar uma tela do
+   jogo aberta: com duas, a fila aparece em dobro e a música, os efeitos e a voz do Noel tocam
+   duas vezes no som do computador, que é o som que vai para a live. No painel, o selo deve
+   dizer "Tela do jogo: aberta" (sem "(2)").
+2. Com o jogo aberto (janela preta aberta), dê dois cliques em **`abrir-janela-da-live.bat`**.
    Abre uma janela em pé, sem barra de endereço, só com a Vila do Noel, no tamanho 540x960.
    Essa janela já sai com o **som liberado** (não precisa clicar) e **continua animando mesmo
    com outra janela na frente**.
    - Ela usa o Microsoft Edge (que já vem no Windows) ou o Chrome.
-   - Para uma janela maior (1080x1920, só cabe em telas grandes), abra o Prompt de Comando na
-     pasta e rode `abrir-janela-da-live.bat 1080`.
-2. No LIVE Studio, deixe a live no formato **em pé (retrato, vertical)**.
-3. Adicione uma fonte do tipo **captura de janela** (procure a opção de capturar uma janela ou
-   um aplicativo aberto) e escolha a janela **Vila do Noel Live**.
-4. Aumente a fonte até ocupar a tela toda da live.
-5. **Som:** a janela toca a música, os efeitos e a voz do Noel no seu computador. Confira no
+   - Se ainda houver outra tela do jogo aberta, a janelinha preta do `.bat` avisa por alguns
+     segundos: feche a outra.
+   - Para uma janela maior (1080x1920, mais nítida, só cabe em telas grandes, como monitores
+     4K ou de pé), use **`abrir-janela-da-live-grande.bat`** no lugar.
+3. No LIVE Studio, deixe a live no formato **em pé (retrato, vertical)**.
+4. Adicione uma fonte do tipo **captura de janela** (procure a opção de capturar uma janela ou
+   um aplicativo aberto) e escolha a janela que mostra **a sala do Noel** (o nome dela é
+   "Vila do Noel Live"). **Não** escolha a janela preta ("Vila do Noel - servidor").
+5. Aumente a fonte até ocupar a tela toda da live.
+6. **Som:** a janela toca a música, os efeitos e a voz do Noel no seu computador. Confira no
    LIVE Studio se o som do computador (ou o som dessa janela) está sendo enviado para a live:
    procure nas opções de áudio do LIVE Studio. Faça um teste antes de entrar ao vivo.
-6. Não **minimize** a janela do jogo. Ela pode ficar atrás de outras janelas, mas minimizada o
+7. Não **minimize** a janela do jogo. Ela pode ficar atrás de outras janelas, mas minimizada o
    Windows pode parar de mostrar a imagem.
 
 Outras opções no LIVE Studio:
 
-- **Se a sua versão tiver uma fonte de página da internet** (às vezes chamada de "link" ou
-  "navegador"): use o endereço `http://localhost:3000/?obs` com o tamanho 1080x1920. Teste o
+- **Fonte "Link" (página da internet):** em várias versões fica em **+ Adicionar fonte** (Add Source) →
+  **Link**. Se a sua tiver: use o endereço `http://localhost:3000/?obs` com o tamanho 1080x1920. Teste o
   som: dependendo da versão, a voz sintetizada do Noel pode não funcionar nesse tipo de fonte
   (a música e os efeitos funcionam).
 - **Sem o `.bat`:** a janela que o botão **Abrir a tela do jogo** do painel abre também serve
@@ -212,8 +260,15 @@ painel e a janela do jogo também.
   **Executar assim mesmo**.
 - **A janela preta abre e fecha rápido, ou diz que não achou os arquivos:** você abriu o
   `iniciar.bat` de dentro do zip. Extraia o zip primeiro (passo 2).
-- **"Falta instalar o Node.js":** faça o passo 1 e abra o `iniciar.bat` de novo. Se você
-  acabou de instalar, feche e abra a janela de novo (ou reinicie o computador).
+- **"Falta instalar o Node.js" ou "O Node.js deste computador é antigo demais":** faça o
+  passo 1 (versão LTS, 22 ou mais nova) e abra o `iniciar.bat` de novo. Se você acabou de
+  instalar, feche e abra a janela de novo (ou reinicie o computador).
+- **"A Vila do Noel já está sendo preparada em outra janela preta":** você deu dois cliques
+  no `iniciar.bat` duas vezes. Feche a janela que mostrou esse aviso e espere a outra
+  terminar; o painel abre sozinho.
+- **A instalação está muito lenta ou dá erro de permissão (EPERM, EBUSY):** a pasta do jogo
+  provavelmente está dentro do OneDrive (Documentos ou Área de Trabalho). Extraia de novo em
+  `C:\VilaDoNoel` (passo 2).
 - **A instalação deu erro:** confira a internet e abra o `iniciar.bat` de novo. Se continuar,
   apague a pasta `node_modules` (dentro da pasta do jogo) e tente outra vez.
 - **"Outro programa está usando a porta 3000":** feche o outro programa, ou aceite a porta
@@ -230,7 +285,12 @@ painel e a janela do jogo também.
 - **Ninguém entra na fila durante a live:** confira se o selo da live diz "Ao vivo" e se o
   selo da tela do jogo diz que ela está aberta. Veja o registro do painel: ele mostra o que
   aconteceu com cada pessoa.
-- **Os gnomos aparecem em dobro:** há duas telas do jogo abertas. Deixe só uma.
+- **Os gnomos aparecem em dobro, ou o som sai duas vezes (eco):** há duas telas do jogo
+  abertas. Deixe só uma.
+- **Os gnomos aparecem só com a letra do nome, sem a foto de perfil:** a foto não chegou (o
+  jogo segue normalmente com a inicial). A janela preta mostra, no máximo uma vez por minuto,
+  uma linha `[fotos]` dizendo quantas fotos carregaram e por que as outras não vieram
+  (`rede` = internet ou TikTok fora; `recusado` = endereço de foto que o jogo não aceita).
 - **A imagem trava ou fica lenta:** feche outros programas pesados; no painel, em
   "Desempenho", escolha a qualidade Média ou Baixa; no OBS, ligue a aceleração por hardware
   da fonte de navegador.

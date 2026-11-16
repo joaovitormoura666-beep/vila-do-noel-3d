@@ -1,5 +1,5 @@
 import { exec } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createVilaServer } from './app.js';
 import { EMPACOTADO, ROOT, readConfig } from './config.js';
@@ -8,6 +8,23 @@ import { loadDotEnv } from './env.js';
 // O arquivo .env (se existir) fica na raiz do projeto ou ao lado do servidor empacotado.
 const envFile = resolve(ROOT, '.env');
 const envLoaded = loadDotEnv(envFile);
+
+/*
+ * Proteção contra erros inesperados. A leitura da live usa uma biblioteca não oficial que faz
+ * rede em segundo plano; uma promessa rejeitada sem tratamento ali derrubaria o Node 22 (e a
+ * fila) no meio da live. Aqui o erro vira só um aviso na janela preta. Mostra só a mensagem,
+ * cortada, e nunca o objeto inteiro: ele poderia trazer dados de quem assiste.
+ */
+const mensagemCurta = (e: unknown) => String((e as { message?: unknown } | null)?.message ?? e).slice(0, 200);
+process.on('unhandledRejection', (e) => console.warn('[aviso] erro inesperado ignorado:', mensagemCurta(e)));
+process.on('uncaughtException', (e) => console.warn('[aviso] erro inesperado ignorado:', mensagemCurta(e)));
+
+const nodeMajor = Number(process.versions.node.split('.')[0]);
+if (nodeMajor < 22) {
+  console.warn(
+    `[aviso] Este computador usa o Node.js ${process.versions.node}. O jogo abre, mas a leitura da live do TikTok precisa do Node.js 22 ou mais novo: instale a versão LTS em https://nodejs.org.`,
+  );
+}
 
 const { config, errors, warnings } = readConfig(process.env);
 
@@ -46,6 +63,15 @@ app
     }
     if (EMPACOTADO || config.exposed) console.log(`  Dados salvos em:     ${config.dataDir}`);
     console.log('\n  Para encerrar: Ctrl + C\n');
+    // O iniciar.bat marca ".vila-iniciando" enquanto instala e compila (para uma segunda janela
+    // não rodar outro npm install ao mesmo tempo). Com o servidor no ar, a marca não é mais necessária.
+    if (!EMPACOTADO) {
+      try {
+        rmSync(resolve(ROOT, '.vila-iniciando'), { force: true });
+      } catch {
+        /* sem permissão: o iniciar.bat confere se a janela dona da marca ainda está aberta */
+      }
+    }
     // O iniciar.bat abre só o painel; a tela do jogo é aberta pelo botão do painel, numa
     // janela à parte (se as duas abrissem como abas, a que ficasse escondida pausaria).
     if (config.openBrowser && config.serveFront && existsSync(config.frontDir)) openInBrowser(`${base}/painel.html`);

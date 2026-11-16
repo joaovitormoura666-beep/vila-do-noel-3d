@@ -466,6 +466,13 @@ $('tt-form').addEventListener('submit', (ev) => {
   conn.send({ t: 'tiktokConfig', usuario: typed, ligado: true });
 });
 
+// "Conferir agora": enquanto espera a live ou reconecta, tenta na hora (o servidor trata o mesmo @
+// ligado de novo como pedido de tentativa imediata). Sem este botão, o único botão era "Desconectar".
+$('tt-agora').addEventListener('click', () => {
+  if (!tiktok?.config.ligado || !tiktok.config.usuario) return;
+  conn.send({ t: 'tiktokConfig', usuario: tiktok.config.usuario, ligado: true });
+});
+
 $('tt-chave-salvar').addEventListener('click', () => {
   const input = $<HTMLInputElement>('tt-chave');
   const key = input.value.trim();
@@ -492,6 +499,7 @@ function renderTikTok() {
     $('tt-mensagem').textContent = 'O painel não está conectado ao servidor do jogo.';
     button.disabled = true;
     $('tt-sala').hidden = true;
+    $('tt-agora').hidden = true;
     return;
   }
   const { status, contadores, config } = info;
@@ -508,6 +516,7 @@ function renderTikTok() {
   else if (config.ligado) button.textContent = 'Desconectar';
   else button.textContent = 'Conectar';
   button.classList.toggle('primario', !config.ligado || (typed !== null && typed !== config.usuario));
+  $('tt-agora').hidden = !(config.ligado && (status.state === 'aguardando_live' || status.state === 'reconectando'));
 
   const sala = $('tt-sala');
   const parts: string[] = [];
@@ -520,6 +529,11 @@ function renderTikTok() {
   $('tt-presentes').textContent = contadores.presentes.toLocaleString('pt-BR');
   $('tt-curtidas').textContent = contadores.curtidas.toLocaleString('pt-BR');
   $('tt-fila').textContent = contadores.entraramNaFila.toLocaleString('pt-BR');
+  // os outros números também ajudam a conferir, na primeira live, se seguir e compartilhar estão chegando
+  $('tt-outros').textContent =
+    `Seguidores: ${contadores.seguidores.toLocaleString('pt-BR')} · ` +
+    `Compartilhamentos: ${contadores.compartilhamentos.toLocaleString('pt-BR')} · ` +
+    `Efeitos pedidos por presentes: ${contadores.efeitos.toLocaleString('pt-BR')}`;
 
   $('tt-chave-info').textContent = !config.chaveDefinida
     ? 'Nenhuma chave salva (usando o limite gratuito).'

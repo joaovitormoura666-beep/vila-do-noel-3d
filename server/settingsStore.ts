@@ -23,6 +23,9 @@ export function sanitizeSettings(input: Partial<Settings>, base: Settings = DEFA
     .map((c) => String(c).trim().toLowerCase())
     .filter((c) => c.length > 0 && c.length <= 30)
     .slice(0, 10);
+  // regra do projeto: sempre existe um jeito gratuito de entrar na fila pelo chat. Lista vazia
+  // (o dono apagou todos) volta para os comandos padrão (!presente, !noel, !fila).
+  if (s.chatCommands.length === 0) s.chatCommands = [...DEFAULT_SETTINGS.chatCommands];
   s.hintText = String(s.hintText ?? '').replace(/\s+/g, ' ').trim().slice(0, 90);
   s.paused = Boolean(s.paused);
   s.autoSpeed = Boolean(s.autoSpeed);

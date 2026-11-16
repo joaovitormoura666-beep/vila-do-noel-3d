@@ -3,7 +3,7 @@
 Este arquivo é lido por agentes de código (Claude Code, Copilot, Codex e outros) antes de mexer no
 projeto. Leia inteiro. Depois leia `docs/3D/LEIA-PRIMEIRO.md` e, se for mexer na arte 3D,
 `lab/LEIA-ME.md`. Antes de mudar qualquer coisa, rode `git status` e leia a seção 12 (trabalho em
-andamento): partes do jogo 3D ainda estavam sendo feitas quando a sessão anterior parou.
+andamento): o jogo já está indo para a live real, e algumas coisas só foram testadas fora do Windows.
 
 ## 1. O que é o projeto
 
@@ -18,10 +18,12 @@ Há duas versões no mesmo repositório:
   controle, simulador, testes. O dono achou o visual fraco e mantém essa versão como arquivo e como
   fonte da lógica que já funciona (fila, regras, frases, áudio). Página: `classico.html` (era o
   `index.html` até 16/11/2026).
-- **Versão 3D (Three.js 0.187), em construção.** Uma sala natalina encantada com o Noel do dono
-  sentado numa poltrona, gnomos visitantes e presentes 3D. A sala e os quatro efeitos ambientes estão
-  prontos; o jogo 3D jogável (`index.html` = `jogo3d.html`, `src/jogo3d/`) teve o visual aprovado pelo dono em
-  16/11/2026 e virou a tela principal da live (`/` e `/?obs` no servidor local).
+- **Versão 3D (Three.js 0.187): a tela principal da live.** Uma sala natalina encantada com o Noel do dono
+  sentado numa poltrona, gnomos visitantes e presentes 3D. O jogo 3D jogável (`index.html` = `jogo3d.html`,
+  `src/jogo3d/`) teve o visual aprovado pelo dono em 16/11/2026 e virou a tela principal da live (`/` e
+  `/?obs` no servidor local). No mesmo dia entrou a **leitura da live do TikTok**
+  (`server/integrations/TikTokSource.ts`, ligada pelo painel). A primeira live roda no PC do dono
+  (`iniciar.bat`); a VM com a Cloudflare é a segunda opção.
 
 Papéis: o **dono** opera a conta do TikTok, roda tudo no PC com Windows e aprova o visual; o
 **ChatGPT** faz a direção criativa; o **Claude** (e outros agentes) faz a engenharia de software. O
@@ -50,9 +52,12 @@ pergunte.
    moeda. (No código, "sorteio" é só o gerador de números com semente, `src/jogo3d/sorteio.ts`.)
 6. **Participação gratuita sempre.** Manter uma forma gratuita de entrar na fila pelo chat (comandos
    `!presente`, `!noel`, `!fila`), além dos presentes do TikTok.
-7. **TikTok real só depois da aprovação visual.** Não integrar com a live real antes de o dono
-   aprovar o visual 3D. Não presuma acesso irrestrito à API oficial do TikTok. O ponto de encaixe
-   futuro é `server/integrations/LiveSource.ts` (veja `docs/INTEGRACAO.md`).
+7. **TikTok real: ligado depois da aprovação visual (16/11/2026).** A leitura da live existe e está
+   ativa: `server/integrations/TikTokSource.ts` (implementa `LiveSource.ts`), com a biblioteca gratuita e
+   **não oficial** `tiktok-live-connector` 2.5.0 (AGPL-3.0), ligada e desligada pelo painel. Não a desligue,
+   não a apague e não troque de biblioteca sem o dono pedir. Não presuma acesso à API oficial do TikTok.
+   Nunca peça, guarde nem use a senha, o cookie ou a sessão do dono (nada de `authenticateWs`). Detalhes e
+   riscos em `docs/INTEGRACAO.md`.
 8. **Decisões criativas importantes são do dono e da direção criativa.** Título, presentes, frases,
    ritmo, voz, composição, estilo dos personagens: proponha e pergunte. Não decida sozinho. As
    perguntas em aberto estão em `docs/3D/PROXIMOS-PASSOS.md`.
@@ -72,7 +77,8 @@ pergunte.
 
 ```
 AGENTS.md, CLAUDE.md     regras para agentes (este arquivo)
-README.md                manual do jogo 2D para o dono (outro trabalho cuida dele)
+README.md                manual do dono (aponta para docs/COMO-RODAR-NA-LIVE.md, o passo a passo da live)
+.gitattributes           *.bat sem conversão de quebra de linha (precisam de CRLF)
 .env.demo                só VITE_AUTONOMO=1, usado por npm run demo (sem segredo, vai no git)
 index.html               tela da live: o jogo 3D (src/jogo3d/main.ts), servida em / pelo servidor
 classico.html            versão clássica 2D (Phaser), em /classico.html
@@ -80,24 +86,34 @@ painel.html              painel de controle (serve ao 2D e ao 3D)
 demo.html                demonstração 2D sem servidor (npm run demo)
 demo-sala.html           sala 3D sozinha com botões dos quatro efeitos (npm run sala)
 jogo3d.html              a mesma página do index.html (endereço antigo, usado pelo laboratório e pelas ferramentas)
-iniciar.bat              atalho do Windows: confere o Node, npm install só quando precisa, npm start, abre o painel
+iniciar.bat              atalho do Windows: confere o Node 22, a porta e a trava contra duas janelas
+                         (.vila-iniciando), npm install só quando precisa, npm start, abre o painel e, se o
+                         servidor parar com erro, pergunta se abre de novo
 parar.bat                encerra o servidor da Vila do Noel (só ele)
 abrir-janela-da-live.bat janela própria do Edge/Chrome em 9:16 para a captura de janela do TikTok LIVE Studio
-                         (os três .bat usam tools/windows.cjs; passo a passo em docs/COMO-RODAR-NA-LIVE.md)
+                         (acha a porta 3000 ou 3100; avisa se já houver outra tela do jogo aberta);
+                         abrir-janela-da-live-grande.bat faz o mesmo em 1080x1920
+                         (os .bat usam tools/windows.cjs, são ASCII e CRLF; passo a passo em
+                         docs/COMO-RODAR-NA-LIVE.md)
 
 shared/                  tipos usados pelo servidor e pelas telas
   types.ts               eventos da live, participante, configurações (DEFAULT_SETTINGS)
-  ambient.ts             os quatro efeitos ambientes e a configuração padrão deles
+  ambient.ts             os quatro efeitos ambientes, a configuração padrão deles e a regra
+                         PROVISÓRIA "presente da live → efeito" (DEFAULT_AMBIENT_GIFTS)
+  tiktok.ts              estado da leitura da live mostrado no painel e a limpeza do @
   simAvatar.ts           fotos de perfil fictícias em SVG para o simulador
-server/                  servidor Node (20 ou mais novo; 22 LTS recomendado) + ws
+server/                  servidor Node (22 ou mais novo, obrigatório: a biblioteca do TikTok exige) + ws
   index.ts, app.ts       liga o servidor; rotas HTTP, WebSocket /ws, senha do painel, POST /api/evento
   config.ts, env.ts      configuração do ambiente; env.ts lê o arquivo .env sem pacote extra
   security.ts            origens permitidas, senhas, limites de conexão e de tamanho
-  avatars.ts             repassa as fotos de perfil, só de hosts permitidos (AVATAR_HOSTS_PERMITIDOS)
+  avatars.ts             repassa as fotos de perfil, só de hosts permitidos (AVATAR_HOSTS_PERMITIDOS; no modo
+                         local, só os servidores de imagens do TikTok); motivo da falha em X-Avatar-Erro
   static.ts              entrega os arquivos das páginas quando o servidor também serve o front
   EventHub.ts, rules.ts, dedup.ts, settingsStore.ts
                          eventos, regras de quem entra na fila, duplicados, configurações do painel
-  integrations/          fontes de eventos: simulador e o esboço do TikTok (não ativo)
+                         (settingsStore.ts também guarda a configuração do TikTok em data/tiktok.json)
+  integrations/          fontes de eventos: SimulatorSource.ts (simulador do painel) e TikTokSource.ts
+                         (leitura da live do TikTok, ATIVA; conversão de eventos, espera da live, reconexão)
 src/                     telas, em TypeScript
   2D (Phaser):           main.ts, config.ts, render/, characters/, santa/Santa.ts, ui/,
                          animations/, queue/QueueDirector.ts, effects/Snow.ts,
@@ -126,13 +142,15 @@ src/                     telas, em TypeScript
   demo/sala.ts           código da página demo-sala.html
 lab/                     laboratório 3D: página de fotos, guia (LEIA-ME.md), fotos e acervo
   acervo/ferramentas/simplificar.mjs   simplifica de novo um GLB que já está em public/assets/modelos/
-tools/                   shot.cjs (fotos), polyhaven.mjs (baixar recursos CC0)
+tools/                   shot.cjs (fotos), polyhaven.mjs (baixar recursos CC0), windows.cjs (ajudante dos .bat)
 public/assets/           modelos GLB, texturas e CREDITOS.md que vão com o jogo
 public/audio/            frases gravadas e música opcionais do dono
-tests/                   testes automáticos (Vitest); tests/jogo3d.test.ts é do jogo 3D (em construção)
+tests/                   testes automáticos (Vitest); jogo3d.test.ts (jogo 3D), tiktok.test.ts (leitura da
+                         live com conector falso), tela-principal.test.ts (páginas, servidor de arquivos, .bat)
 deploy/                  modelos e scripts para separar back-end (VM) e front-end (Cloudflare);
                          deploy/backend/.env.example é o modelo comentado de todas as configurações
-docs/                    documentos do 2D; docs/3D/ documentos do 3D
+docs/                    COMO-RODAR-NA-LIVE.md (passo a passo do dono), INTEGRACAO.md (live do TikTok),
+                         documentos do 2D; docs/3D/ documentos do 3D
 ```
 
 Unidades da arte 3D: metros, Y para cima, câmera olhando de +Z para -Z, `yaw` 0 de frente para +Z.
@@ -140,6 +158,8 @@ Unidades da arte 3D: metros, Y para cima, câmera olhando de +Z para -Z, `yaw` 0
 ## 4. Comandos
 
 Todos rodam na pasta do projeto (no Windows, no terminal do VS Code). Rode `npm install` uma vez antes.
+O Node.js precisa ser o **22 ou mais novo** (`engines` do `package.json`): o `got` 15, usado pela biblioteca do
+TikTok, não roda no 20. Para o dono, o caminho é o `iniciar.bat` (seção 3 e `docs/COMO-RODAR-NA-LIVE.md`).
 
 | Comando | O que faz |
 | --- | --- |
@@ -149,11 +169,12 @@ Todos rodam na pasta do projeto (no Windows, no terminal do VS Code). Rode `npm 
 | `npm start` | Compila o jogo 3D (tela principal), o 2D clássico e o painel e liga o servidor em `http://localhost:3000` (é o que o `iniciar.bat` usa). |
 | `npm run servidor` | Liga só o servidor (sem compilar as páginas). |
 | `npm run dev` | Servidor + Vite em `http://127.0.0.1:5173`, recarregando ao salvar. |
-| `npm test` | Roda os testes (Vitest). Todos precisam passar. (O número muda a cada etapa: em 16/11/2026, por volta de 03:37 UTC, eram 7 arquivos e 102 testes, contando o novo `tests/jogo3d.test.ts`.) |
+| `npm test` | Roda os testes (Vitest). Todos precisam passar. (O número muda a cada etapa: em 16/11/2026, por volta de 13:55 UTC, eram 9 arquivos e 149 testes.) |
 | `npm run typecheck` | Confere os tipos (`tsc --noEmit`). |
 | `npm run build` | Compila em `dist/` o jogo 3D, o 2D clássico e o painel (e copia `public/`). |
 | `npm run demo` | Gera a demonstração 2D sem servidor em `dist-demo/`. |
-| `npm run pacotes` | Gera em `pacotes/` o back-end para a VM e o front-end para a Cloudflare. Também `npm run pacote:backend` e `npm run pacote:frontend`. |
+| `npm run pacotes` | Gera em `pacotes/` o back-end para a VM (com `package-lock.json` tirado do lock do projeto; a VM instala com `npm ci`) e o front-end para a Cloudflare (o jogo 3D e só a arte de `vite.jogo3d.recursos.json`). Também `npm run pacote:backend` e `npm run pacote:frontend`. |
+| `iniciar.bat`, `parar.bat`, `abrir-janela-da-live.bat` | Atalhos do dono no Windows (veja o mapa, seção 3). A lógica fica em `tools/windows.cjs` (`porta`, `travar`, `destravar`, `precisa-instalar`, `parar`, `abrir-janela`). |
 | `node tools/shot.cjs <cena> ...` | Fotografa uma cena do laboratório (veja `docs/3D/LABORATORIO.md`). |
 | `node tools/polyhaven.mjs ...` | Procura e baixa recursos CC0 do Poly Haven (veja `docs/3D/RECURSOS-E-LICENCAS.md`). |
 | `node tools/gravar-jogo3d.cjs ...` | Grava quadro a quadro um vídeo vertical do jogo 3D (MP4 com trilha e capa); uso no cabeçalho do arquivo. Precisa do laboratório ligado. |
@@ -163,7 +184,11 @@ Endereços úteis com `npm run lab` ligado:
 
 - `http://127.0.0.1:5180/demo-sala.html`: a sala com os botões dos quatro efeitos.
 - `http://127.0.0.1:5180/lab/index.html?cena=sala&set=a`: o laboratório (parâmetros em `lab/LEIA-ME.md`).
-- `http://127.0.0.1:5180/jogo3d.html?demo=1`: o jogo 3D em demonstração (em construção).
+- `http://127.0.0.1:5180/jogo3d.html?demo=1`: o jogo 3D em demonstração.
+
+Endereços com `npm start` (ou o `iniciar.bat`) ligado: `http://localhost:3000/painel.html` (painel, com o
+cartão "Live do TikTok"), `http://localhost:3000/` e `/?obs` (jogo 3D), `/?obs&janela=1` (captura de janela),
+`/classico.html` (2D).
 
 Configurações do servidor: no PC não precisa de nenhuma. Na VM, ficam num arquivo `.env` (que nunca vai
 para o git). O modelo comentado é `deploy/backend/.env.example`: as obrigatórias são `TOKEN_ADMIN`,
@@ -287,7 +312,11 @@ O FPS em placa de vídeo real ainda não foi medido.
 - Não colocar segredos (senhas, chaves, `TOKEN_ADMIN`) em código ou documentos.
 - Não trocar o Noel do dono por um genérico, nem colocar um Noel provisório na cena.
 - Não usar imagens, modelos, músicas ou fontes protegidas, nem copiar personagens de filmes.
-- Não ligar o TikTok real, não adicionar serviço pago, não criar mecânica com valor em dinheiro.
+- Não usar a senha, o cookie nem a sessão do dono no TikTok (nada de `authenticateWs`), não adicionar
+  serviço pago, não criar mecânica com valor em dinheiro. Não desligar nem apagar a leitura da live
+  (`TikTokSource.ts`) sem o dono pedir.
+- Não deixar o jogo sem a entrada gratuita pelo chat: `sanitizeSettings` volta para `!presente`, `!noel` e
+  `!fila` quando a lista de comandos fica vazia.
 - Não apagar o jogo 2D nem a lógica do servidor.
 - Não editar `src/world/provisorio/` nem entregar blocos como arte.
 
@@ -309,21 +338,27 @@ O FPS em placa de vídeo real ainda não foi medido.
 - Um clone novo não traz as fotos de trabalho nem as duas referências de terceiros (seção 5). O zip
   `vila-do-noel-3d-codigo.zip` da pasta compartilhada também não traz as fotos.
 
-## 12. Trabalho em andamento (situação em 16/11/2026, por volta de 03:38 UTC)
+## 12. Trabalho em andamento (situação em 16/11/2026, por volta de 14:00 UTC)
 
-Quando estes documentos foram escritos, outros trabalhos ainda estavam mexendo no código. Não suponha que
-eles terminaram: confira com `git status` e `git log`.
+Confira com `git status` e `git log` antes de supor qualquer coisa abaixo.
 
-- **Jogo 3D** (`jogo3d.html`, `src/jogo3d/`): em construção. Havia mudanças ainda não commitadas em
-  `src/jogo3d/CamadaNomes.ts`, `src/jogo3d/Entrega3D.ts` e `src/jogo3d/config.ts`; o arquivo de testes
-  `tests/jogo3d.test.ts` ainda estava fora do git; a pasta `lab/fotos/jogo3d/` tinha fotos mas nenhuma
-  `NOTAS.md`.
-- **Presentes 3D** (`src/world/cast/presentes/`, estúdio `src/world/set-kit-presentes/`): em construção.
-  Havia mudanças não commitadas em `src/world/cast/presentes/trenzinho.ts` e
-  `src/world/set-kit-presentes/index.ts`; `lab/fotos/presentes/NOTAS.md` existia, mas fora do git.
-- **Separação back-end/front-end** (`server/`, `deploy/`, `README.md`): o primeiro commit já entrou
-  (`51d097e`); o jogo 3D ainda não entra no pacote do front-end.
-- **Documentação 3D** (`docs/3D/`): estava fora do git quando foi escrita.
+- **Primeira live no PC do dono.** O caminho escolhido é o modo local (`iniciar.bat`, servidor em
+  `http://localhost:3000`), sem VM. A VM + Cloudflare continuam valendo como segunda opção e não podem quebrar
+  (`npm run pacotes` precisa continuar funcionando).
+- **Jogo 3D = tela principal** (`index.html` = `jogo3d.html`, `src/jogo3d/`); o 2D ficou em `classico.html`.
+  Na página compilada e no `?obs`, a demonstração automática nunca liga (gnomos fictícios não podem aparecer
+  na live por causa de uma queda do servidor).
+- **Leitura da live do TikTok ativa** (`server/integrations/TikTokSource.ts`, cartão "Live do TikTok" do painel,
+  `data/tiktok.json`). Testada só com um conector falso: este ambiente não alcança tiktok.com nem eulerstream.com.
+  A primeira prova real é no PC do dono; a lista do que conferir está em `docs/3D/PROXIMOS-PASSOS.md`
+  ("O que só dá para confirmar no PC do dono"). "Failed to retrieve Room ID from all sources" é tratado como
+  live desligada ("Esperando a live começar"), não como "Reconectando".
+- **Decisões criativas ainda provisórias** (regra 8; tabela em `docs/3D/PROXIMOS-PASSOS.md`): a regra
+  "presente → efeito" (5/30/100/500 moedas; a rosa só põe na fila) e a espera para participar de novo
+  (`rejoinCooldownSec`, padrão 0; sugestão ao dono: 180 a 300 s). Não mude esses padrões sem o dono.
+- **Windows não testado de verdade:** os `.bat` e `tools/windows.cjs` foram conferidos aqui (Linux), mas não
+  num Windows. A trava `.vila-iniciando` usa o processo pai (`process.ppid`, o cmd.exe da janela); com um
+  `node` instalado por "shim" (Volta, Chocolatey) a trava pode não segurar, e nesse caso só deixa de proteger.
 - **Números desatualizados conhecidos:** `lab/fotos/sala-a/NOTAS.md` ainda traz a entrega antiga
   (1,04; -2,08), a folga da frente de 1,35 m e 10 luzes. O código atual (`src/world/set-a/ajustes.ts`) usa a
   entrega a 1,85 m da poltrona na direção 1,27 rad, folga de 1,15 m e 11 luzes. Os valores corretos estão

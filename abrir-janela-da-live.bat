@@ -6,19 +6,21 @@ rem    - sem barra de endereco, no formato em pe (9:16), 540x960;
 rem    - o som sai sem precisar clicar;
 rem    - continua animando mesmo com outra janela na frente.
 rem  Usa o Edge (que ja vem no Windows) ou o Chrome, num perfil separado.
-rem  Antes, o iniciar.bat precisa estar aberto.
-rem  Para uma janela maior (1080x1920, so em telas grandes), rode:
-rem      abrir-janela-da-live.bat 1080
+rem  Antes, o iniciar.bat precisa estar aberto (na porta 3000 ou 3100: este
+rem  atalho acha sozinho).
+rem  Para uma janela maior (1080x1920, so em telas grandes), use o
+rem  abrir-janela-da-live-grande.bat.
 rem  Sem acentos de proposito: o cmd do Windows estraga letras acentuadas.
 rem ===========================================================================
 setlocal
 chcp 65001 >nul 2>nul
 cd /d "%~dp0"
-if not defined PORT set PORT=3000
 where node >nul 2>nul
 if errorlevel 1 goto sem_node
-node tools\windows.cjs abrir-janela %PORT% %1
+node tools\windows.cjs abrir-janela %1
 if errorlevel 1 goto falhou
+rem  deixa a mensagem visivel por alguns segundos (avisos de tela em dobro)
+timeout /t 6 >nul 2>nul
 exit /b 0
 
 :falhou

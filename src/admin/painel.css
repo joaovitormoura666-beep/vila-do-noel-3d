@@ -469,3 +469,16 @@ select {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+.tt-outros {
+  margin: 0;
+  font-size: 14px;
+}
+/* com o "Conferir agora" visível, o campo do @ desce para uma linha própria em telas estreitas */
+@media (max-width: 640px) {
+  .tt-linha {
+    flex-wrap: wrap;
+  }
+  .tt-campo {
+    flex-basis: 100%;
+  }
+}

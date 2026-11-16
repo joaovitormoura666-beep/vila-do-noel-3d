@@ -30,9 +30,10 @@ const OFF: AmbientState = { progress: 0, intensity: 0 };
  * decide o que toca agora, o que espera e o que é descartado, e informa o estado de cada
  * efeito a cada quadro. Não conhece a fila do Papai Noel.
  *
- * Proteções: limite de efeitos simultâneos, descanso mínimo por efeito, fila de espera
- * limitada, pedidos repetidos do mesmo efeito apenas prolongam (até o dobro da duração)
- * e um pedido mais importante faz o menos importante terminar mais cedo.
+ * Proteções: limite de efeitos simultâneos, descanso mínimo por efeito (pedidos à mão, com
+ * `force`, passam por cima dele), fila de espera limitada, pedidos repetidos do mesmo efeito
+ * apenas prolongam (até o dobro da duração) e um pedido mais importante faz o menos
+ * importante terminar mais cedo.
  */
 export class AmbientDirector {
   private config: AmbientConfig;
@@ -65,7 +66,7 @@ export class AmbientDirector {
       same.duration = same.elapsed + extended;
       return 'prolongado';
     }
-    if ((this.restUntil.get(req.effect) ?? 0) > this.now) return this.drop();
+    if (!req.force && (this.restUntil.get(req.effect) ?? 0) > this.now) return this.drop();
 
     if (this.running.length < this.config.maxSimultaneous) {
       this.start(req, duration, priority);

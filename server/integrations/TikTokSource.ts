@@ -6,8 +6,10 @@ import type { LiveSource } from './LiveSource.js';
  * Leitura da live do TikTok pela biblioteca gratuita e NÃO OFICIAL "tiktok-live-connector"
  * (npm, licença AGPL-3.0). Ela entra na live pública pelo @ do criador, sem login e sem senha.
  * A conexão precisa de uma assinatura que vem do serviço Euler Stream (limite gratuito da
- * comunidade; uma chave gratuita aumenta o limite). O Euler Stream recebe só o @ da live.
- * Nunca usamos sessão, cookie nem senha do dono (nada de authenticateWs).
+ * comunidade; uma chave gratuita aumenta o limite). O Euler Stream recebe o @ da live, o número
+ * da sala, o tipo de navegador que a biblioteca anuncia (user-agent), o endereço de internet do
+ * computador (como qualquer site) e a chave, quando houver. Não recebe senha, cookie nem dados de
+ * quem assiste. Nunca usamos sessão, cookie nem senha do dono (nada de authenticateWs).
  *
  * O que esta fonte faz:
  * - converte cada evento da biblioteca para LiveEvent (shared/types.ts) e entrega ao EventHub;
@@ -45,8 +47,20 @@ export type FabricaConector = (usuario: string, opcoes: OpcoesConector) => Conec
 
 let chaveEmUso: string | null | undefined;
 
+/** Versão mínima do Node.js para a biblioteca: dependências dela (got 15) exigem o Node 22. */
+export const NODE_MINIMO = 22;
+
+/** Erro de quando o Node.js do computador é antigo demais para a biblioteca. */
+export class NodeAntigoError extends Error {
+  readonly code = 'VILA_NODE_ANTIGO';
+}
+
 /** Fábrica de verdade: carrega a biblioteca só quando a leitura é ligada. */
 export const fabricaPadrao: FabricaConector = async (usuario, { chave }) => {
+  // Com o Node 20, o import da biblioteca falha com um SyntaxError confuso (ou funções que não
+  // existem); melhor avisar com clareza antes de tentar.
+  const major = Number(process.versions.node.split('.')[0]);
+  if (major < NODE_MINIMO) throw new NodeAntigoError(`Node.js ${process.versions.node} é antigo demais (precisa do ${NODE_MINIMO} ou mais novo)`);
   const mod = (await import('tiktok-live-connector')) as unknown as {
     TikTokLiveConnection: new (u: string, o: Record<string, unknown>) => ConectorTikTok;
     SignConfig: { apiKey?: string; cachedInstance?: unknown };
@@ -256,7 +270,15 @@ export class ConversorTikTok {
 
 /* ---------------------------------------------------------------- erros */
 
-export type TipoDeErro = 'offline' | 'limite' | 'usuario_invalido' | 'sem_internet' | 'nao_encontrado' | 'biblioteca' | 'outro';
+export type TipoDeErro =
+  | 'offline'
+  | 'limite'
+  | 'usuario_invalido'
+  | 'sem_internet'
+  | 'nao_encontrado'
+  | 'biblioteca'
+  | 'node_antigo'
+  | 'outro';
 
 const REDE = /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENETUNREACH|socket hang up|timed? ?out/i;
 
@@ -285,6 +307,7 @@ export function classificarErro(err: unknown): { tipo: TipoDeErro; esperaMs?: nu
     return { tipo: 'limite', esperaMs: espera > 0 ? espera : undefined };
   }
   if (nome === 'InvalidUniqueIdError') return { tipo: 'usuario_invalido' };
+  if (code === 'VILA_NODE_ANTIGO' || nome === 'NodeAntigoError') return { tipo: 'node_antigo' };
   if (code === 'ERR_MODULE_NOT_FOUND' || /Cannot find (package|module) 'tiktok-live-connector'/i.test(msg)) return { tipo: 'biblioteca' };
   if (REDE.test(`${code} ${msg}`) || errosInternos(err).some((i) => REDE.test(`${str(obj(i)?.code)} ${str(obj(i)?.message)}`))) {
     return { tipo: 'sem_internet' };
@@ -359,6 +382,8 @@ export class TikTokSource implements LiveSource {
   private tentativas = 0;
   private conferencias = 0;
   private conectadoEm = 0;
+  /** Já conectou à live deste @ desde que o servidor ligou (muda a explicação de "não encontrei"). */
+  private jaConectou = false;
 
   private _status: TikTokStatus;
   private _contadores: TikTokCounters = { ...EMPTY_TIKTOK_COUNTERS };
@@ -418,7 +443,10 @@ export class TikTokSource implements LiveSource {
     this.config = { usuario: nova.usuario, ligado, chave: nova.chave };
     if (!mudou) return;
     this.desligarConexao();
-    if (trocouUsuario) this._contadores = { ...EMPTY_TIKTOK_COUNTERS };
+    if (trocouUsuario) {
+      this._contadores = { ...EMPTY_TIKTOK_COUNTERS };
+      this.jaConectou = false;
+    }
     if (!ligado) {
       this.mudarEstado(
         'desligado',
@@ -470,6 +498,7 @@ export class TikTokSource implements LiveSource {
     }
     this.conectadoEm = this.agora();
     this.conferencias = 0;
+    this.jaConectou = true;
     const info = obj(obj(conector.roomInfo)?.data) ?? obj(conector.roomInfo) ?? {};
     const sala = str(info.title).slice(0, 120) || undefined;
     const espectadores = num(info.user_count ?? info.userCount ?? obj(info.stats)?.user_count_composition) || undefined;
@@ -535,6 +564,13 @@ export class TikTokSource implements LiveSource {
         this.mudarEstado('erro', `O TikTok não aceitou o @${u}. Confira se escreveu certo (sem espaços) e clique em Conectar de novo.`);
         this.log('erro', `TikTok: o @${u} não foi aceito`);
         return;
+      case 'node_antigo':
+        this.mudarEstado(
+          'erro',
+          `O Node.js deste computador é antigo demais para ler a live (precisa do ${NODE_MINIMO} ou mais novo). Instale a versão LTS em nodejs.org e abra o iniciar.bat de novo.`,
+        );
+        this.log('erro', `TikTok: Node.js ${process.versions.node} é antigo demais; instale o ${NODE_MINIMO} LTS ou mais novo`);
+        return;
       case 'biblioteca':
         this.mudarEstado(
           'erro',
@@ -553,7 +589,17 @@ export class TikTokSource implements LiveSource {
         this.reconectar(geracao, 'Não consegui falar com o TikTok. Confira a internet deste computador.');
         return;
       case 'nao_encontrado':
-        this.reconectar(geracao, `Não encontrei a live de @${u}. Confira se o @ está certo e se a live já começou.`);
+        // Com a conta fora do ar, o TikTok às vezes nem devolve o número da sala, e a biblioteca
+        // diz "Failed to retrieve Room ID from all sources" em vez de "não está ao vivo". Tratamos
+        // como live desligada: confere a cada 30 s (depois 60 s), sem o selo de "Reconectando" e
+        // sem gastar à toa o limite gratuito do Euler Stream (a última rota tentada é a dele).
+        this.tentativas = 0;
+        this.esperarLive(
+          geracao,
+          this.jaConectou
+            ? `Não encontrei a live de @${u} agora; ela pode ter terminado. Quando você estiver ao vivo, o jogo conecta sozinho.`
+            : `Ainda não encontrei a live de @${u}. Se a live não começou, é normal: o jogo conecta sozinho quando começar. Se você já está ao vivo, confira se o @ está certo.`,
+        );
         return;
       default:
         this.reconectar(geracao, 'O TikTok recusou a conexão desta vez.');

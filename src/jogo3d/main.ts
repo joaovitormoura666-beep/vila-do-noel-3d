@@ -248,8 +248,11 @@ async function iniciar() {
           break;
       }
     });
+    // botões apertados à mão (painel, demonstração, console) passam por cima do descanso do efeito:
+    // quem aperta espera ver o efeito; os presentes da live respeitam o descanso
+    const PEDIDOS_A_MAO = new Set(['painel', 'demonstracao', 'console', 'endereco']);
     const pedirEfeito = (effect: AmbientEffectId, source: string) => {
-      const r = ambiente.request({ effect, source });
+      const r = ambiente.request({ effect, source, force: PEDIDOS_A_MAO.has(source) });
       if (effect === 'SLEIGH_PASS' && r === 'iniciado') audio.sfx.play('sleigh');
       return r;
     };
@@ -295,7 +298,7 @@ async function iniciar() {
               bus.emit('settings', msg.settings);
               break;
             default: {
-              // efeitos ambientes vindos do servidor (quando o servidor passar a mandá-los)
+              // efeitos ambientes vindos do servidor (botões do painel ou presentes da live)
               const m = msg as unknown as { t: string; effect?: unknown; durationSec?: unknown; source?: unknown };
               if (m.t === 'ambient' && isAmbientEffect(m.effect)) pedirEfeito(m.effect, typeof m.source === 'string' ? m.source : 'servidor');
             }

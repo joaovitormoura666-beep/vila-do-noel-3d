@@ -24,6 +24,45 @@ export interface AvatarProxyOptions {
 let running = 0;
 const runningPerIp = new Map<string, number>();
 
+/** Por que uma foto de perfil não veio (vai no cabeçalho X-Avatar-Erro e no resumo da janela preta). */
+export type MotivoFalhaAvatar = 'recusado' | 'rede' | 'resposta' | 'tamanho' | 'ocupado' | 'invalido';
+
+class FalhaAvatar extends Error {
+  constructor(readonly motivo: MotivoFalhaAvatar) {
+    super(motivo);
+  }
+}
+
+/**
+ * Resumo das fotos de perfil, no máximo uma linha por minuto na janela do servidor. Serve para o
+ * dono saber, na primeira live, se as fotos do TikTok estão chegando (sem endereço nem nome de
+ * ninguém: só as contas).
+ */
+const resumoFotos = { ok: 0, falhas: new Map<MotivoFalhaAvatar, number>() };
+let resumoTimer: NodeJS.Timeout | null = null;
+function anotarFoto(motivo: MotivoFalhaAvatar | null) {
+  if (motivo) resumoFotos.falhas.set(motivo, (resumoFotos.falhas.get(motivo) ?? 0) + 1);
+  else resumoFotos.ok++;
+  if (resumoTimer) return;
+  resumoTimer = setTimeout(() => {
+    resumoTimer = null;
+    const falhas = [...resumoFotos.falhas].map(([m, n]) => `${m}: ${n}`).join(', ');
+    const totalFalhas = [...resumoFotos.falhas.values()].reduce((a, b) => a + b, 0);
+    if (totalFalhas > 0) {
+      console.log(`[fotos] no último minuto: ${resumoFotos.ok} fotos de perfil carregadas, ${totalFalhas} sem foto (${falhas}). Sem foto, aparece a inicial do nome.`);
+    }
+    resumoFotos.ok = 0;
+    resumoFotos.falhas.clear();
+  }, 60_000);
+  resumoTimer.unref?.();
+}
+
+function falhou(res: ServerResponse, status: number, motivo: MotivoFalhaAvatar, extra: Record<string, string> = {}) {
+  anotarFoto(motivo);
+  if (!res.headersSent) res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8', 'X-Avatar-Erro': motivo, ...extra });
+  res.end('avatar indisponível');
+}
+
 /* ---------- fotos já baixadas (memória) ---------- */
 
 /** A mesma pessoa aparece várias vezes na live: a foto baixada fica guardada por alguns minutos. */
@@ -158,11 +197,7 @@ function readLimited(res: IncomingMessage, maxBytes: number): Promise<Buffer> {
  * poucos downloads ao mesmo tempo (no total e por endereço).
  */
 export async function proxyAvatar(res: ServerResponse, rawUrl: string | null, ip: string, opts: AvatarProxyOptions) {
-  if (!rawUrl || rawUrl.length > 2000) {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('avatar indisponível');
-    return;
-  }
+  if (!rawUrl || rawUrl.length > 2000) return falhou(res, 404, 'invalido');
   const cached = cacheGet(rawUrl);
   if (cached) {
     res.writeHead(200, { 'Content-Type': cached.type, 'Cache-Control': 'public, max-age=3600' });
@@ -170,11 +205,7 @@ export async function proxyAvatar(res: ServerResponse, rawUrl: string | null, ip
     return;
   }
   const mine = runningPerIp.get(ip) ?? 0;
-  if (running >= opts.maxConcurrent || mine >= opts.maxConcurrentPerIp) {
-    res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '2' });
-    res.end('ocupado');
-    return;
-  }
+  if (running >= opts.maxConcurrent || mine >= opts.maxConcurrentPerIp) return falhou(res, 503, 'ocupado', { 'Retry-After': '2' });
   running++;
   runningPerIp.set(ip, mine + 1);
   const ctrl = new AbortController();
@@ -185,7 +216,14 @@ export async function proxyAvatar(res: ServerResponse, rawUrl: string | null, ip
     if (!res.writableEnded) ctrl.abort();
   });
   try {
-    let url = checkAvatarUrl(rawUrl, opts.hosts);
+    const conferir = (u: string) => {
+      try {
+        return checkAvatarUrl(u, opts.hosts);
+      } catch {
+        throw new FalhaAvatar('recusado');
+      }
+    };
+    let url = conferir(rawUrl);
     let upstream: IncomingMessage | null = null;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       upstream = await get(url, ctrl.signal);
@@ -195,7 +233,7 @@ export async function proxyAvatar(res: ServerResponse, rawUrl: string | null, ip
         upstream.resume();
         upstream.destroy();
         if (!next || hop === MAX_REDIRECTS) throw new Error('redirecionamentos demais');
-        url = checkAvatarUrl(new URL(next, url).href, opts.hosts);
+        url = conferir(new URL(next, url).href);
         upstream = null;
         continue;
       }
@@ -206,21 +244,25 @@ export async function proxyAvatar(res: ServerResponse, rawUrl: string | null, ip
     const status = upstream.statusCode ?? 0;
     if (status < 200 || status >= 300 || !ALLOWED_TYPES.test(type)) {
       upstream.destroy();
-      throw new Error('resposta inválida');
+      throw new FalhaAvatar('resposta');
     }
     if (Number(upstream.headers['content-length'] ?? 0) > opts.maxBytes) {
       upstream.destroy();
-      throw new Error('imagem grande demais');
+      throw new FalhaAvatar('tamanho');
     }
     const body = await readLimited(upstream, opts.maxBytes);
     const cleanType = type.split(';')[0].trim().toLowerCase();
     cachePut(rawUrl, cleanType, body);
     res.writeHead(200, { 'Content-Type': cleanType, 'Cache-Control': 'public, max-age=3600' });
     res.end(body);
-  } catch {
+    anotarFoto(null);
+  } catch (err) {
     ctrl.abort();
-    if (!res.headersSent) res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('avatar indisponível');
+    // o motivo vai no cabeçalho (para conferir no navegador) e no resumo da janela preta; o
+    // código continua 404, que a tela do jogo (2D e 3D) já trata como "sem foto: fica a inicial"
+    const motivo: MotivoFalhaAvatar =
+      err instanceof FalhaAvatar ? err.motivo : /grande demais/.test(String((err as Error)?.message)) ? 'tamanho' : 'rede';
+    falhou(res, 404, motivo);
   } finally {
     clearTimeout(timer);
     running--;

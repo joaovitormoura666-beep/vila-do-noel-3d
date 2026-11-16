@@ -104,7 +104,7 @@ sudo mkdir -p /opt/vila-do-noel
 sudo cp -r vila-do-noel-backend/. /opt/vila-do-noel/
 sudo useradd --system --home /opt/vila-do-noel --shell /usr/sbin/nologin vila || true
 cd /opt/vila-do-noel
-sudo npm install --omit=dev --no-audit --no-fund
+sudo npm ci --omit=dev --no-audit --no-fund
 sudo chown -R vila:vila /opt/vila-do-noel/data
 ```
 
@@ -295,8 +295,8 @@ No computador do projeto, gere o pacote de novo (`npm run pacote:backend`), mand
 para a VM (passo 4, só o `scp` e o `unzip`) e:
 
 ```
-sudo cp vila-do-noel-backend/servidor.mjs vila-do-noel-backend/package.json /opt/vila-do-noel/
-cd /opt/vila-do-noel && sudo npm install --omit=dev --no-audit --no-fund
+sudo cp vila-do-noel-backend/servidor.mjs vila-do-noel-backend/package.json vila-do-noel-backend/package-lock.json /opt/vila-do-noel/
+cd /opt/vila-do-noel && sudo npm ci --omit=dev --no-audit --no-fund
 sudo systemctl restart vila-do-noel
 ```
 
@@ -348,7 +348,7 @@ Nunca mande o `.env` para ninguém.
 ## Alternativa: Docker
 
 Se a VM já usa Docker, pule os passos 3, 6 e 7, e no passo 4 pule só a linha
-`sudo npm install …` (quem instala a dependência é o próprio Docker). Depois do passo 5:
+`sudo npm ci …` (quem instala a dependência é o próprio Docker). Depois do passo 5:
 
 ```
 cd /opt/vila-do-noel

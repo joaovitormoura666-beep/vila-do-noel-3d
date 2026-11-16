@@ -3,6 +3,8 @@ import { EventDeduper } from '../server/dedup';
 import { cleanNickname, eventToParticipant, isChatCommand, parseExternalEvent } from '../server/rules';
 import { sanitizeSettings } from '../server/settingsStore';
 import { DEFAULT_SETTINGS, type LiveEvent } from '../shared/types';
+import { AmbientDirector } from '../src/ambient/AmbientDirector';
+import { DEFAULT_AMBIENT } from '../shared/ambient';
 
 const ev = (over: Partial<LiveEvent>): LiveEvent => ({
   eventId: 'e1',
@@ -94,5 +96,23 @@ describe('configurações', () => {
   it('normaliza os comandos do chat', () => {
     const s = sanitizeSettings({ chatCommands: [' !Noel ', '', '!FILA'] });
     expect(s.chatCommands).toEqual(['!noel', '!fila']);
+  });
+
+  it('nunca fica sem comando gratuito: lista vazia volta para !presente, !noel e !fila', () => {
+    expect(sanitizeSettings({ chatCommands: [] }).chatCommands).toEqual(['!presente', '!noel', '!fila']);
+    expect(sanitizeSettings({ chatCommands: ['   ', ''] }).chatCommands).toEqual(['!presente', '!noel', '!fila']);
+  });
+});
+
+describe('efeitos da sala: botão do painel durante o descanso', () => {
+  it('presente da live respeita o descanso; o botão (force) passa por cima', () => {
+    const d = new AmbientDirector(DEFAULT_AMBIENT);
+    const cfg = DEFAULT_AMBIENT.effects.MAGICAL_NIGHT;
+    expect(d.request({ effect: 'MAGICAL_NIGHT', source: 'tiktok' })).toBe('iniciado');
+    // deixa terminar: entra no descanso
+    for (let t = 0; t < cfg.durationSec * 2 + 2; t += 0.5) d.update(0.5);
+    expect(d.snapshot().active).toHaveLength(0);
+    if (cfg.cooldownSec > 0) expect(d.request({ effect: 'MAGICAL_NIGHT', source: 'tiktok' })).toBe('descartado');
+    expect(d.request({ effect: 'MAGICAL_NIGHT', source: 'painel', force: true })).toBe('iniciado');
   });
 });

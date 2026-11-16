@@ -1,0 +1,7 @@
+# Os atalhos do Windows (.bat) precisam da quebra de linha do Windows (CRLF): com a do Linux (LF)
+# o cmd erra rótulos e "goto". "-text" faz o git guardar e entregar o arquivo exatamente como está,
+# sem converter, seja qual for a configuração core.autocrlf de quem fizer o commit. Isso vale também
+# para o .zip que o GitHub gera em "Code > Download ZIP".
+# (tests/tela-principal.test.ts confere que os .bat continuam em CRLF e só com letras sem acento.)
+*.bat -text
+*.cmd -text

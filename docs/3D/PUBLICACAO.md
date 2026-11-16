@@ -8,8 +8,10 @@ passo para o dono rodar a live no PC está em `docs/COMO-RODAR-NA-LIVE.md`.
 ## 1. Rodar no PC com Windows
 
 O que precisa: Windows 10 ou 11, Node.js 22 LTS ou mais novo (<https://nodejs.org>), Chrome ou Edge e,
-para transmitir, o OBS Studio ou o TikTok LIVE Studio. Nenhum serviço pago. (O `package.json` ainda aceita
-o Node 20, mas o suporte dele acabou em 30/04/2026; o back-end da VM também usa o Node 22.)
+para transmitir, o OBS Studio ou o TikTok LIVE Studio. Nenhum serviço pago. **O Node 22 é obrigatório desde
+16/11/2026:** a biblioteca que lê a live do TikTok (`tiktok-live-connector` 2.5.0) usa o `got` 15, que exige o
+Node 22. O `package.json` (`engines`), o `iniciar.bat` e o pacote da VM pedem `>=22`; o servidor avisa na
+janela preta se o Node for mais velho, e o painel mostra "Precisa de atenção" em vez de ficar tentando.
 
 Primeira vez: pegue o código (seção 3) e, no terminal do VS Code, dentro da pasta do projeto, rode:
 
@@ -32,7 +34,7 @@ Depois abra no navegador (deixe o terminal aberto):
 
 O laboratório não liga o servidor de eventos: o jogo 3D percebe isso e entra sozinho em demonstração.
 
-### Jogo 3D com o servidor e o painel (em construção)
+### Jogo 3D com o servidor e o painel (desenvolvimento)
 
 ```
 npm run dev
@@ -41,16 +43,30 @@ npm run dev
 Liga o servidor (porta 3000) e o Vite em <http://127.0.0.1:5173>, que repassa `/ws` e `/api` ao servidor.
 Abra o painel em <http://127.0.0.1:5173/painel.html> e o jogo 3D em <http://127.0.0.1:5173/jogo3d.html>.
 O jogo 3D usa a mesma conexão do 2D (papel `game`), então o simulador e os comandos do painel (pular,
-limpar, testar voz, recarregar, configurações) chegam a ele. Os botões dos efeitos ambientes ainda não
-existem no painel. Como esta parte está em construção, confira antes de usar numa live.
+limpar, testar voz, recarregar, configurações), os botões do cartão **Efeitos da sala** e a leitura da live
+do TikTok (cartão **Live do TikTok**) chegam a ele.
 
-### A live no PC (jogo 3D como tela principal, desde 16/11/2026)
+### A live no PC (jogo 3D como tela principal, desde 16/11/2026) — o caminho da primeira live
 
 Dois cliques em `iniciar.bat`, ou `npm start`. O painel abre em <http://localhost:3000/painel.html> e a tela
 da live em <http://localhost:3000/?obs>, que agora é o **jogo 3D** (`index.html`; `jogo3d.html` é a mesma
 página). A versão 2D continua em <http://localhost:3000/classico.html>. `npm start` compila as quatro páginas
 (`vite.config.ts`) e copia `public/` para `dist/`. O passo a passo para o dono, com o TikTok LIVE Studio e o
 OBS, está em `docs/COMO-RODAR-NA-LIVE.md`.
+
+A leitura da live do TikTok roda no próprio servidor do PC: no painel, cartão **Live do TikTok**, o dono
+escreve o @ e clica em **Conectar** (detalhes, estados e riscos em `docs/INTEGRACAO.md`). Não precisa de
+nada na VM nem na Cloudflare.
+
+Os atalhos do Windows (todos usam `tools/windows.cjs`, sem acentos e com quebra de linha CRLF, garantida pelo
+`.gitattributes`):
+
+| Atalho | O que faz |
+| --- | --- |
+| `iniciar.bat` | Confere o Node 22, a porta (3000, ou oferece a 3100) e uma trava contra duas janelas preparando ao mesmo tempo (`.vila-iniciando`, com o número do processo da janela; o servidor apaga quando sobe); roda `npm install` só quando precisa; `npm start`; se o servidor parar com erro, pergunta se abre de novo (sem recompilar, se `dist/` já existe). |
+| `parar.bat` | Encerra só a Vila do Noel (confere `/api/saude` antes), na 3000 ou na 3100. |
+| `abrir-janela-da-live.bat` | Janela do Edge/Chrome em modo aplicativo, 540x960, com som sem clique, para a captura de janela do LIVE Studio. Acha a porta sozinho (3000 ou 3100) e avisa se já houver outra tela do jogo aberta (`/api/estado`). |
+| `abrir-janela-da-live-grande.bat` | O mesmo, em 1080x1920 (telas grandes). |
 
 ### OBS
 
@@ -84,14 +100,17 @@ npm run pacotes
 
 | Pacote | Conteúdo | Passo a passo |
 | --- | --- | --- |
-| `pacotes/backend/` e `pacotes/vila-do-noel-backend.zip` | o servidor num arquivo só (`servidor.mjs`), `package.json`, `.env.example`, serviço do systemd, `Caddyfile`, `Dockerfile` opcional | `deploy/backend/LEIA-ME.md` |
+| `pacotes/backend/` e `pacotes/vila-do-noel-backend.zip` | o servidor num arquivo só (`servidor.mjs`), `package.json` (Node `>=22`; dependências `ws` e `tiktok-live-connector`, que ficam fora do `servidor.mjs`), `package-lock.json` com as versões exatas tiradas do lock do projeto (a VM e o Docker instalam com `npm ci`), `.env.example`, serviço do systemd, `Caddyfile`, `Dockerfile` opcional | `deploy/backend/LEIA-ME.md` |
 | `pacotes/frontend/` e `pacotes/vila-do-noel-frontend.zip` | tela do jogo 3D (`index.html`, e `jogo3d.html` igual), versão clássica 2D (`classico.html`), painel, sala 3D (`demo-sala.html`, também em `/sala`), `config.json`, `_headers`, `_redirects`, a arte listada em `vite.jogo3d.recursos.json` e `public/audio` | `deploy/frontend/LEIA-ME.md` |
 
 ### Back-end na VM (resumo de `deploy/backend/LEIA-ME.md`)
 
 - VM Linux com Ubuntu 22.04 ou 24.04, a menor serve, com IP fixo; liberar só as portas 22, 80 e 443.
 - Node.js 22 (LTS), o Caddy na frente para o HTTPS automático e gratuito, e o serviço do systemd para o
-  servidor ficar sempre ligado.
+  servidor ficar sempre ligado. As dependências entram com `npm ci --omit=dev` (versões fixas do
+  `package-lock.json` do pacote).
+- A leitura da live também funciona na VM (configure pelo painel, ou por `TIKTOK_USUARIO`, `TIKTOK_LIGADO` e
+  `EULER_API_KEY` no `.env`). Para a primeira live o caminho escolhido é o PC do dono; a VM é a segunda opção.
 - Um domínio ou subdomínio que o dono controle (por exemplo `api.seu-dominio.com.br`).
 - Configurações no `.env` (modelo comentado em `deploy/backend/.env.example`): `TOKEN_ADMIN` (senha do
   painel, gerada na hora e nunca escrita em documento), `ORIGENS_PERMITIDAS` (o endereço das páginas na

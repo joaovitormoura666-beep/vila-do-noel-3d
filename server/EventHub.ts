@@ -212,7 +212,10 @@ export class EventHub {
       return false;
     }
     this.broadcast('game', { t: 'ambient', effect, source });
-    this.addLog('info', `✨ Efeito ${AMBIENT_LABELS[effect]} (${why})`);
+    // "pedido enviado", e não "tocou": a tela do jogo ainda decide (um efeito de presente em
+    // descanso, ou com outros tocando, espera a vez ou fica de fora; os botões do painel passam
+    // por cima do descanso)
+    this.addLog('info', `✨ Efeito ${AMBIENT_LABELS[effect]}: pedido enviado à tela (${why})`);
     return true;
   }
 

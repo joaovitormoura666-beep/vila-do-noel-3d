@@ -1,24 +1,36 @@
-# Vila do Noel Live — MVP 1.0
+# Vila do Noel Live
+
+> **Para usar na live, siga o passo a passo [docs/COMO-RODAR-NA-LIVE.md](docs/COMO-RODAR-NA-LIVE.md).**
+> Ele é a versão mais atual de tudo o que está aqui: instalar, abrir pelo `iniciar.bat`,
+> ligar a leitura da live e levar a tela para o TikTok LIVE Studio ou para o OBS.
 
 Jogo interativo natalino para lives verticais (9:16). Quem participa da live vira um
-personagem com nome e foto, entra na fila da vila, caminha até o Papai Noel e recebe um
-presente virtual com animação e fala personalizada.
+gnomo com nome e foto, entra na fila da sala do Papai Noel, caminha até ele e recebe um
+presente com animação e fala personalizada.
 
 Os presentes são só animações decorativas: não têm valor, não são sorteio e não podem
 ser resgatados.
 
-Esta versão é o protótipo visual. Ela roda inteira no seu computador, com um simulador
-de eventos, e **ainda não está ligada ao TikTok** (isso fica para depois de validarmos o
-visual; veja [docs/INTEGRACAO.md](docs/INTEGRACAO.md)).
+A tela da live é a **Vila do Noel 3D** (a sala com o Noel na poltrona). A versão 2D
+antiga continua guardada como versão clássica, em `/classico.html`.
 
-<img src="docs/imagens/tela-da-live.jpg" alt="Tela da live: a fila de visitantes e o Papai Noel revelando um presente" width="360">
+O jogo roda inteiro no seu computador e **lê a live do TikTok pelo @ da sua conta**, sem
+pedir senha: no painel, escreva o @ e clique em **Conectar**. Essa leitura usa uma
+biblioteca gratuita e **não oficial** (`tiktok-live-connector`); os riscos estão em
+[docs/INTEGRACAO.md](docs/INTEGRACAO.md), na parte "Riscos". Quem está na live entra na
+fila mandando um presente ou, de graça, digitando `!presente`, `!noel` ou `!fila` no chat.
+
+<img src="docs/imagens/tela-da-live.jpg" alt="Versão clássica 2D: a fila de visitantes e o Papai Noel revelando um presente" width="360">
+
+*(Imagem da versão clássica 2D.)*
 
 ---
 
 ## 1. O que você precisa
 
 - Windows 10 ou 11.
-- [Node.js](https://nodejs.org), versão LTS (20 ou mais nova). É gratuito.
+- [Node.js](https://nodejs.org), versão LTS (**22 ou mais nova**; a leitura da live não
+  funciona com versões mais velhas). É gratuito.
 - Chrome ou Edge.
 - Para transmitir: OBS Studio ou TikTok LIVE Studio.
 
@@ -28,16 +40,19 @@ Não há nenhum serviço pago nem conta para criar.
 
 1. Instale o Node.js: abra <https://nodejs.org>, baixe o instalador **LTS** e instale
    aceitando o que ele sugerir.
-2. Extraia o arquivo `vila-do-noel.zip`: clique nele com o botão direito, escolha
-   **Extrair tudo** e use uma pasta simples, por exemplo `C:\vila-do-noel`.
+2. Extraia o `.zip` do projeto: clique nele com o botão direito, escolha **Extrair
+   tudo** e use uma pasta simples fora do OneDrive, por exemplo `C:\VilaDoNoel`. Se dentro
+   da pasta extraída houver só outra pasta com o mesmo nome, entre nela. (Detalhes, como
+   desbloquear o zip antes, em [docs/COMO-RODAR-NA-LIVE.md](docs/COMO-RODAR-NA-LIVE.md).)
 3. Abra a pasta e dê dois cliques em **`iniciar.bat`**.
    - Na primeira vez ele instala os componentes do jogo. Leva alguns minutos e precisa
-     de internet. Depois disso o jogo funciona sem internet.
-   - Se o Windows mostrar um aviso azul de segurança, clique em **Mais informações** e
-     depois em **Executar assim mesmo**. O `iniciar.bat` só roda os comandos
-     `npm install` e `npm start`; você pode abri-lo no Bloco de Notas para conferir.
+     de internet. Não dê dois cliques de novo enquanto isso.
+   - Se o Windows mostrar um aviso de segurança, clique em **Mais informações** e
+     depois em **Executar assim mesmo** (ou em **Executar**). O `iniciar.bat` confere o
+     Node.js e a porta e roda os comandos `npm install` e `npm start`; você pode abri-lo
+     no Bloco de Notas para conferir.
 4. O **painel de controle** abre sozinho no navegador. Nele, clique em
-   **Abrir a tela do jogo**: a vila aparece em uma janela vertical ao lado do painel.
+   **Abrir a tela do jogo**: a sala 3D aparece em uma janela vertical ao lado do painel.
 5. Deixe a janela preta do `iniciar.bat` aberta enquanto usar o jogo. Para encerrar,
    feche essa janela.
 
@@ -55,11 +70,11 @@ Depois abra `http://localhost:3000/painel.html` no navegador.
 Com o painel e a tela do jogo abertos lado a lado:
 
 1. Clique em **🌹 Simular rosa**.
-2. Um personagem entra pela parte de baixo da tela e anda até a fila.
-3. Quando chega a vez dele, ele sobe até o Papai Noel.
+2. Um gnomo entra na fila da sala.
+3. Quando chega a vez dele, ele anda até o Papai Noel, sentado na poltrona.
 4. O Noel cumprimenta pelo nome e diz "Vamos ver qual é o seu presente!".
-5. O presente sai do saco, é revelado com o nome da pessoa e é entregue.
-6. O personagem comemora e vai embora, liberando a vez do próximo.
+5. O presente sai do saco, a caixa abre e o presente aparece com o nome da pessoa.
+6. O gnomo comemora e vai embora, liberando a vez do próximo.
 
 Clique várias vezes, ou use **+10 pessoas**, **+50 pessoas** e **+100 pessoas**, para ver
 a fila cheia. Se o som não sair, clique uma vez dentro da tela do jogo (o navegador só
@@ -69,17 +84,21 @@ libera o áudio depois de um clique).
 
 | O que é | Endereço |
 | --- | --- |
-| Tela da live (a que vai para a transmissão) | `http://localhost:3000/` |
+| Tela da live, jogo 3D (a que vai para a transmissão) | `http://localhost:3000/` |
+| Tela da live para o OBS (sem avisos nem botões) | `http://localhost:3000/?obs` |
+| Tela para a captura de janela do LIVE Studio | `http://localhost:3000/?obs&janela=1` (ou o `abrir-janela-da-live.bat`) |
 | Painel de controle (só para você) | `http://localhost:3000/painel.html` |
+| Versão clássica 2D | `http://localhost:3000/classico.html` |
 | Entrada de eventos para integrações | `POST http://localhost:3000/api/evento` |
 
 Opções que podem ir no fim do endereço da tela da live:
 
-- `?obs` esconde o aviso "clique para ativar o som". Use no OBS.
-- `?limpar=1` começa com a fila vazia (por padrão a fila é guardada e volta se a
+- `?obs` esconde o aviso "clique para ativar o som" e os botões. Use no OBS.
+- `?limpar` começa com a fila vazia (por padrão a fila é guardada e volta se a
   página for recarregada).
-- `?demo` faz visitantes fictícios entrarem sozinhos, para deixar a tela rodando em
-  demonstração.
+- `?demo=1` faz visitantes fictícios entrarem sozinhos, para deixar a tela rodando em
+  demonstração. Não use na live.
+- `?depurar` mostra o FPS e o nível de qualidade (só para conferir).
 
 Atalhos de teclado na tela da live: `R` cria um visitante de teste e `D` liga ou desliga
 a demonstração automática.
@@ -105,12 +124,12 @@ ou capturar uma janela do Chrome ou do Edge.
 
 ### TikTok LIVE Studio
 
-Adicione uma fonte de navegador (em algumas versões ela se chama "Link") apontando para
-`http://localhost:3000/?obs`, com tamanho 1080x1920. Se a sua versão não tiver esse tipo
-de fonte, abra a tela do jogo pelo botão do painel e use **Captura de janela**.
-
-Na captura de janela, a janela do jogo precisa ficar visível na área de trabalho, sem
-estar minimizada nem coberta por outra, senão o navegador pausa as animações.
+O jeito mais seguro é a **captura de janela**: com o jogo aberto, feche a tela do jogo
+aberta pelo painel e dê dois cliques em **`abrir-janela-da-live.bat`**. Ele abre uma janela
+em pé, sem barra de endereço, com o som liberado e que continua animando mesmo com outra
+janela na frente. No LIVE Studio, capture essa janela (a que mostra a sala do Noel, não a
+janela preta). Não minimize a janela do jogo. O passo a passo completo, com o som e as
+outras opções, está em [docs/COMO-RODAR-NA-LIVE.md](docs/COMO-RODAR-NA-LIVE.md), passo 6.
 
 Ter acesso ao LIVE Studio ou à chave de transmissão para o OBS depende das regras do
 TikTok para a sua conta.
@@ -154,6 +173,8 @@ nada disso precisa ser configurado.
 
 | Cartão | Para que serve |
 | --- | --- |
+| Live do TikTok | Escrever o @ da conta e conectar a leitura da live. Mostra a situação (Esperando a live começar, Ao vivo, Reconectando...), o título da live, os espectadores e os contadores. **Conferir agora** tenta conectar na hora. |
+| Efeitos da sala | Tocar na hora os quatro efeitos (árvore, lareira, trenó, noite mágica) e ajustar qual presente da live dispara qual efeito (regra provisória). |
 | Simulador de eventos | Criar participantes de teste: rosa, comando `!presente`, outro presente, novo seguidor, grupos de 10, 50 e 100, evento duplicado e a mesma pessoa de novo. |
 | Fila agora | Ver quantos esperam, quem está com o Noel e quantos já foram atendidos. Pausar, pular a pessoa atual e limpar a fila. |
 | Ritmo | Velocidade da entrega, aceleração automática quando a fila cresce, quantos personagens aparecem ao mesmo tempo, tamanho máximo da fila e espera para a mesma pessoa participar de novo. |
@@ -186,7 +207,7 @@ As configurações ficam salvas em `data/configuracoes.json`.
 | --- | --- |
 | `npm start` | Prepara o jogo e inicia o servidor em `http://localhost:3000`. É o que o `iniciar.bat` usa. |
 | `npm run dev` | Modo de desenvolvimento em `http://localhost:5173`, que atualiza a tela ao salvar o código. |
-| `npm test` | Roda os testes automáticos da fila, dos eventos, das regras, da senha do painel e do endereço do back-end. |
+| `npm test` | Roda os testes automáticos da fila, dos eventos, das regras, da senha do painel, do endereço do back-end, da leitura da live (com um conector falso) e do jogo 3D. |
 | `npm run typecheck` | Confere os tipos do TypeScript. |
 | `npm run demo` | Gera em `dist-demo/` uma demonstração que roda sozinha, sem servidor, para hospedar como página estática e mostrar o visual. |
 | `npm run pacotes` | Gera em `pacotes/` o back-end para a VM e o front-end para a Cloudflare (veja "Rodar separado"). |
@@ -198,9 +219,13 @@ Para usar outra porta: `set PORT=3100 && npm start`.
 ```
 vila-do-noel/
 ├── iniciar.bat            atalho para instalar e iniciar no Windows
-├── index.html             tela da live
+├── parar.bat              encerra o jogo
+├── abrir-janela-da-live.bat   janela em pé para a captura do TikTok LIVE Studio
+├── abrir-janela-da-live-grande.bat   o mesmo, em 1080x1920 (telas grandes)
+├── index.html             tela da live: o jogo 3D (src/jogo3d/)
+├── classico.html          versão clássica 2D
 ├── painel.html            painel de controle
-├── demo.html              demonstração que roda sem servidor
+├── demo.html              demonstração 2D que roda sem servidor
 ├── shared/                tipos usados pelo servidor e pelas telas
 ├── server/                servidor (Node.js + WebSocket), no PC ou na VM
 │   ├── index.ts           inicia o servidor com a configuração do ambiente (.env)
@@ -212,8 +237,10 @@ vila-do-noel/
 │   ├── dedup.ts           eventos duplicados
 │   ├── settingsStore.ts   configurações salvas
 │   ├── avatars.ts         fotos de perfil
-│   └── integrations/      fontes de eventos: simulador e o encaixe do TikTok
-├── src/                   telas (TypeScript + Phaser)
+│   └── integrations/      fontes de eventos: simulador e a leitura da live do TikTok (TikTokSource.ts)
+├── src/                   telas (TypeScript; jogo 3D com Three.js, versão clássica com Phaser)
+│   ├── jogo3d/            jogo 3D (a tela da live)
+│   ├── world/             arte 3D: sala, Noel, gnomos, presentes
 │   ├── config.ts          cores, posições, caminho da fila e tempos
 │   ├── render/            cenário e toda a arte, desenhada por código
 │   ├── queue/             fila (lógica e movimento na tela)
@@ -234,6 +261,9 @@ vila-do-noel/
 
 ## 10. Onde ajustar sem mexer na lógica
 
+A tabela abaixo vale para a lógica comum e para a versão clássica 2D. Os ajustes do jogo 3D
+(câmera, tempos da entrega, sala, Noel, gnomos e presentes) estão em `docs/3D/`.
+
 | Quero mudar | Arquivo |
 | --- | --- |
 | Cores, posição da casa, do Noel e da fila, tempos | `src/config.ts` |
@@ -246,7 +276,8 @@ vila-do-noel/
 
 ## 11. Problemas comuns
 
-- **"O Node.js não foi encontrado":** instale pelo site e abra o `iniciar.bat` de novo.
+- **"O Node.js não foi encontrado" ou "antigo demais":** instale a versão LTS (22 ou mais
+  nova) pelo site e abra o `iniciar.bat` de novo.
 - **"A porta 3000 já está em uso":** o jogo já está aberto em outra janela. Feche a
   outra, ou use outra porta com `set PORT=3100 && npm start`.
 - **A tela abre, mas nada acontece ao simular:** confira no topo do painel se aparece
@@ -265,16 +296,21 @@ vila-do-noel/
 
 ## 12. Outros documentos
 
+- [docs/COMO-RODAR-NA-LIVE.md](docs/COMO-RODAR-NA-LIVE.md): passo a passo para a live no seu PC.
+- [docs/3D/](docs/3D/LEIA-PRIMEIRO.md): documentação do jogo 3D (para quem programa).
 - [docs/PENDENCIAS.md](docs/PENDENCIAS.md): o que está pronto, limitações e próximos passos.
 - [docs/DIRECAO-CRIATIVA.md](docs/DIRECAO-CRIATIVA.md): escolhas provisórias que precisam
   do aval da direção criativa.
 - [docs/AUDIO.md](docs/AUDIO.md): voz, música e efeitos.
-- [docs/INTEGRACAO.md](docs/INTEGRACAO.md): como os eventos entram e como ligar ao TikTok
-  depois.
+- [docs/INTEGRACAO.md](docs/INTEGRACAO.md): como os eventos entram, a leitura da live do
+  TikTok e os riscos dela.
 
 ## Recursos usados
 
-Toda a arte é original e desenhada por código, sem imagens de terceiros. A música e os
-efeitos sonoros são sintetizados pelo próprio jogo. Bibliotecas, todas gratuitas e de
-código aberto: Phaser, Vite, TypeScript, ws, tsx e a fonte Fredoka (licença SIL Open
-Font).
+A arte é original. O jogo 3D usa só modelos e texturas do Poly Haven (licença CC0), com os
+créditos em `public/assets/CREDITOS.md`; a versão clássica 2D é desenhada por código. A
+música e os efeitos sonoros são sintetizados pelo próprio jogo. Bibliotecas, todas
+gratuitas e de código aberto: Three.js, Phaser, Vite, TypeScript, ws, tsx, a fonte Fredoka
+(licença SIL Open Font) e o `tiktok-live-connector` (licença AGPL-3.0; usar no seu
+computador ou na sua VM não obriga a nada, mas quem repassar o servidor para outras
+pessoas precisa entregar o código junto, como explica `docs/INTEGRACAO.md`).

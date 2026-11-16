@@ -53,6 +53,12 @@ export interface AmbientRequest {
   priority?: number;
   /** De onde veio: 'painel', 'simulador', 'webhook', 'tiktok'... */
   source?: string;
+  /**
+   * Pedido feito à mão (botão do painel, da demonstração ou do console): passa por cima do
+   * descanso do efeito. Quem aperta o botão espera ver o efeito; os presentes da live continuam
+   * respeitando o descanso. O limite de efeitos ao mesmo tempo continua valendo (fica na espera).
+   */
+  force?: boolean;
 }
 
 export type AmbientResult = 'iniciado' | 'na_fila' | 'prolongado' | 'descartado' | 'desligado';

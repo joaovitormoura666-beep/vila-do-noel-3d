@@ -179,9 +179,6 @@ Com muitos arquivos (mais de 1.000), use o Wrangler em vez de arrastar:
 
 A arte 3D em `assets/` fica guardada por 7 dias nos navegadores. Ao trocar um modelo ou
 uma textura, prefira um **nome de arquivo novo**, para todo mundo receber a versão nova na hora.
-Hoje essa pasta vai junto para o **jogo 3D que vem aí** (a tela do jogo atual e a sala de
-demonstração ainda não usam esses arquivos). Quando o jogo 3D virar a tela da live, gere o
-pacote de novo (`npm run pacote:frontend`) e envie a pasta nova.
 
 ## Música e voz próprias
 

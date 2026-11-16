@@ -1,35 +1,60 @@
 # Próximos passos e perguntas em aberto
 
-Atualizado em 16/11/2026. A ordem combinada com o dono continua valendo: primeiro o visual (sala, Noel,
-gnomos, presentes), depois os efeitos ligados ao painel, e o TikTok real só depois da aprovação visual.
+Atualizado em 16/11/2026, por volta de 14:00 UTC. O visual do jogo 3D foi dado como aprovado pelo dono (registro de 16/11/2026) e ele
+pediu para ir para a live. O caminho da **primeira live** é o **PC do dono** (`iniciar.bat`, servidor em
+`http://localhost:3000`, sem VM); a VM com a Cloudflare continua como segunda opção. Passo a passo para o
+dono: `docs/COMO-RODAR-NA-LIVE.md`.
 
-## Em construção agora
+## Situação agora
 
-1. **Jogo 3D jogável** (`jogo3d.html`, `src/jogo3d/`): fila de gnomos andando, entrega com o Noel sentado
-   ("Vamos ver qual é o seu presente!"), caixa que abre, presente que aparece, gnomo que comemora e sai,
-   nomes que não se amontoam na frente do Noel. Usa a lógica do 2D (veja `ARQUITETURA.md`).
-2. **Os 12 presentes 3D e a caixa** (`src/world/cast/presentes/`). As notas vão para
-   `lab/fotos/presentes/NOTAS.md`.
-3. **Separação do back-end (VM) e do front-end (Cloudflare Pages)** (`deploy/`, `pacotes/`).
-4. Depois desses: crítica de arte, revisão, um vídeo do fluxo e uma prévia ao vivo com os botões.
+1. **Jogo 3D é a tela principal** (`index.html` = `jogo3d.html`, `src/jogo3d/`): fila de gnomos, entrega com
+   o Noel sentado, 12 presentes 3D, HUD, efeitos da sala. O 2D ficou como versão clássica (`classico.html`).
+2. **Leitura da live do TikTok** pronta (`server/integrations/TikTokSource.ts`, cartão "Live do TikTok" do
+   painel), com a biblioteca gratuita e não oficial `tiktok-live-connector` 2.5.0. Exige o **Node 22**.
+3. **Efeitos da sala no painel**: quatro botões (passam por cima do descanso do efeito) e a regra
+   provisória "presente da live → efeito".
+4. **Atalhos do Windows**: `iniciar.bat` (Node 22, porta, trava contra duas janelas, reabrir depois de um
+   erro), `parar.bat`, `abrir-janela-da-live.bat` e `abrir-janela-da-live-grande.bat`.
+5. **Pacotes**: o front-end leva o 3D e só a arte usada; o back-end leva um `package-lock.json` e instala
+   com `npm ci`.
 
-Situação desses trabalhos em 16/11/2026, por volta de 03:38 UTC: havia mudanças ainda não commitadas no
-jogo 3D e nos presentes, `tests/jogo3d.test.ts` e `lab/fotos/presentes/` estavam fora do git e
-`lab/fotos/jogo3d/` não tinha `NOTAS.md`. Quem continuar deve rodar `git status` antes e não supor que o
-jogo 3D está terminado (lista completa no `AGENTS.md`, seção 12).
+Tudo isso foi testado neste ambiente com um conector **falso** (o contêiner não alcança o TikTok nem o Euler
+Stream). Quem continuar deve rodar `git status` antes (lista no `AGENTS.md`, seção 12).
+
+## O que só dá para confirmar no PC do dono, na primeira live
+
+- **A conexão de verdade** com o TikTok e o Euler Stream: o selo chega a "Ao vivo"? Aparecem o título da live
+  e os espectadores (lidos de `roomInfo.data.title`/`user_count` e do evento `roomUser.total`)?
+- **Live ainda desligada**: o selo mostra "Esperando a live começar" (e não "Reconectando")? Com a conta fora
+  do ar, a biblioteca às vezes diz "Failed to retrieve Room ID from all sources"; o jogo agora trata isso como
+  live desligada.
+- **Presentes**: nome e valor (`gift.name`/`diamondCount` ou `extendedGiftInfo`) chegam certos? O combo de rosas
+  conta uma vez só? O presente grande toca a Noite mágica?
+- **Seguidores e compartilhamentos** chegam (linha pequena embaixo dos contadores do painel)?
+- **Fotos de perfil** do TikTok carregam pelo proxy? A janela preta mostra uma linha `[fotos]` por minuto
+  quando alguma falha, com o motivo.
+- **Os `.bat` num Windows de verdade**: `choice` S/N, a trava `.vila-iniciando` (dois cliques seguidos no
+  `iniciar.bat`), o `netstat`/`taskkill` do `parar.bat`, o Edge em modo `--app` com `--window-size` e
+  `--autoplay-policy`, o aviso de tela em dobro do `abrir-janela-da-live.bat`.
+- **Som** na captura de janela do TikTok LIVE Studio (nomes de menu variam por versão) e no OBS.
+- **FPS** numa placa de vídeo real com o OBS aberto (`?obs&depurar`), nos três níveis.
+- **Node**: o `iniciar.bat` recusa versões antes da 22. Conferir com a LTS que o nodejs.org oferece (24 em
+  novembro de 2026).
 
 ## Pendências técnicas
 
-- **Página principal.** Trocar `index.html` do 2D para o 3D, deixando o 2D como versão clássica (precisa do
-  aval do dono). Incluir o jogo 3D no `npm start`/`npm run build` (`vite.config.ts`) e no pacote do front-end.
-- **Efeitos ambientes no painel e no servidor.** Hoje os quatro efeitos só tocam pelos botões das páginas de
-  demonstração e pelo endereço. Falta: botões no painel, a mensagem `ambient` saindo do servidor (o jogo 3D
-  já sabe recebê-la), duração e prioridade configuráveis no painel e, no futuro, ligar cada efeito a um tipo
-  de evento da live (decisão criativa).
+- **Duração e prioridade dos efeitos no painel.** Hoje ficam em `DEFAULT_AMBIENT` (`shared/ambient.ts`). O botão
+  do painel passa por cima do descanso; os presentes da live respeitam. Uma resposta do jogo ao servidor
+  ("tocou", "na espera", "descartado") ainda não existe: o registro do painel diz só "pedido enviado à tela".
+- **Fotos de perfil que falham** ainda deixam um "Failed to load resource: 404" no console da tela (uma
+  linha por pessoa sem foto). A tela fica certa (aparece a inicial). Responder 204 ou uma imagem vazia mudaria
+  o comportamento do 2D, por isso ficou como está; o motivo agora vai no cabeçalho `X-Avatar-Erro`.
+- **Erros inesperados no servidor** viram aviso na janela preta (`unhandledRejection`/`uncaughtException` em
+  `server/index.ts`), para a biblioteca não oficial não derrubar a fila no meio da live.
 - **FPS de verdade.** Medir no PC do dono, com Windows, OBS aberto e placa de vídeo real, nos três níveis. O
   laboratório desenha por software e não serve para isso.
-- **Peso do pacote.** Tirar do pacote do front-end os modelos do acervo que a sala A não usa (hoje vai todo
-  `public/assets/`, cerca de 26 MB).
+- **Peso do pacote.** Feito em 16/11/2026: o pacote do front-end leva só a arte listada em
+  `vite.jogo3d.recursos.json`.
 - **Montagem dos gnomos.** Um gnomo novo custa cerca de 30 ms no nível alto; o jogo 3D já monta com
   antecedência, mas vale conferir engasgos com a fila enchendo rápido.
 - **`.gitignore` e envio ao GitHub.** Feito em 16/11/2026: o `.gitignore` deixa de fora as pastas geradas e
@@ -85,7 +110,8 @@ sem mexer na lógica.
 | O texto de instrução pode pedir presente na tela? (conferir as regras atuais do TikTok) | "Digite !presente no chat ou envie uma 🌹 para entrar na fila" | Painel, cartão "Como as pessoas entram" |
 | Qual presente da live dispara qual efeito da sala? | Pelo valor do envio: 5 moedas Árvore, 30 Lareira, 100 Trenó, 500 Noite mágica; a rosa só põe na fila | Painel, cartão "Efeitos da sala" (`DEFAULT_AMBIENT_GIFTS` em `shared/ambient.ts`) |
 | Onde ficam o chat e os botões do TikTok na conta do dono? | Zonas padrão: título de 190 a 420 px, jogo de 430 a 1480 px, chat abaixo de 1480 px | `src/jogo3d/hud.ts`, `lab/dados.ts` |
-| Quais eventos da live disparam cada efeito ambiente, e com que duração? | Nenhum ainda (só botões de teste) | `shared/ambient.ts` e, depois, o painel |
+| Quanto tempo a mesma pessoa espera para participar de novo depois de receber o presente? | **0 s** (pode voltar para o fim da fila na hora e ganhar de novo na mesma live). Sugestão para o dono decidir antes da primeira live: 180 a 300 s | Painel, cartão "Ritmo", campo "Espera para participar de novo" (`rejoinCooldownSec` em `DEFAULT_SETTINGS`, `shared/types.ts`) |
+| Quanto tempo dura cada efeito da sala e quanto descansa? | Valores de `DEFAULT_AMBIENT` (provisórios) | `shared/ambient.ts` (ainda não está no painel) |
 | Outras escolhas provisórias | Fonte Fredoka, comandos `!presente`, `!noel` e `!fila`, fila com limite de 150, 11 visíveis, valsa de caixinha de música | Painel e `docs/DIRECAO-CRIATIVA.md` |
 
 Quando uma pergunta for respondida, registre a decisão e a data em `HISTORICO.md`.

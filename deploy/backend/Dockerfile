@@ -14,8 +14,9 @@ FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 DATA_DIR=/app/data
 
-COPY package.json ./
-RUN npm install --omit=dev --no-audit --no-fund && npm cache clean --force
+# package-lock.json: as versões exatas testadas no projeto (npm ci instala só elas)
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 
 COPY servidor.mjs ./
 RUN mkdir -p /app/data && chown -R node:node /app/data

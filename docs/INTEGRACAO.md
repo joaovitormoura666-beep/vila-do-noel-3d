@@ -19,13 +19,23 @@ lives chamando `/api/evento`) continua funcionando junto.
 | --- | --- | --- |
 | Desligado | O jogo não está lendo a live. | Escreva o @ e clique em Conectar. |
 | Conectando… | Abrindo a conexão (alguns segundos). | Esperar. |
-| Esperando a live começar | O @ está certo, mas a live ainda não começou. Confere de novo a cada 30 s (depois de 10 minutos, a cada 1 minuto). | Pode deixar ligado antes de entrar ao vivo: ele conecta sozinho. |
+| Esperando a live começar | A live ainda não começou: a biblioteca disse "não está ao vivo" (`UserOfflineError`) ou não achou o número da sala ("Failed to retrieve Room ID from all sources", o que acontece com a conta fora do ar). Confere de novo a cada 30 s (depois de 10 minutos, a cada 1 minuto). | Pode deixar ligado antes de entrar ao vivo (no máximo uns 10 minutos antes, para não gastar o limite gratuito do Euler Stream): ele conecta sozinho. **Conferir agora** tenta na hora. |
 | Ao vivo | Recebendo comentários e presentes. Mostra o título da live e quantas pessoas assistem. | Nada. Os contadores sobem. |
-| Reconectando | A conexão caiu ou o TikTok recusou desta vez. Tenta de novo sozinho, esperando 2 s, 4 s, 8 s, 16 s, 32 s e depois 1 minuto. | Se não voltar, confira a internet. |
-| Precisa de atenção | Algo que não se resolve sozinho (ex.: o TikTok não aceitou o @, ou a biblioteca não está instalada). | Ler a mensagem, corrigir e clicar em "Conectar de novo". |
+| Reconectando | A conexão caiu, faltou internet, o Euler Stream pediu pausa ou o TikTok recusou desta vez. Tenta de novo sozinho, esperando 2 s, 4 s, 8 s, 16 s, 32 s e depois 1 minuto (ou o tempo que o Euler Stream pedir). | **Conferir agora** tenta na hora. Se não voltar, confira a internet. |
+| Precisa de atenção | Algo que não se resolve sozinho (ex.: o TikTok não aceitou o @, a biblioteca não está instalada, ou o Node.js é anterior ao 22). | Ler a mensagem, corrigir e clicar em "Conectar de novo". |
+
+Enquanto o jogo espera a live ou reconecta, o botão principal diz **Desconectar** (desliga a
+leitura). O botão **Conferir agora**, que só aparece nesses dois estados, manda ao servidor o
+mesmo @ ligado de novo, e o servidor trata isso como pedido de tentativa imediata.
 
 Os contadores do painel mostram comentários, presentes (um combo de 10 rosas conta 1),
-curtidas e quantas pessoas da live a tela do jogo aceitou na fila. Eles zeram ao trocar de @.
+curtidas e quantas pessoas da live a tela do jogo aceitou na fila; numa linha menor, seguidores,
+compartilhamentos e efeitos pedidos por presentes. Eles zeram ao trocar de @.
+
+A biblioteca precisa do **Node.js 22 ou mais novo** (o `got` 15, que ela usa, exige o 22). O
+`iniciar.bat` não abre com um Node mais velho, e o servidor avisa na janela preta; se mesmo
+assim a leitura for ligada num Node antigo, o painel mostra "Precisa de atenção" com o que fazer,
+em vez de ficar tentando.
 
 A escolha fica salva em `data/tiktok.json`: se o computador reiniciar com a leitura ligada,
 ela liga sozinha de novo. Uma conexão por vez: trocar de @ ou desligar encerra a anterior.
@@ -119,7 +129,11 @@ configuração do TikTok pelo painel segue as mesmas regras de senha do resto do
   funcionando pelo simulador e pela entrada `/api/evento`; o painel mostra "Reconectando" ou
   "Precisa de atenção".
 - **Euler Stream.** Para abrir a conexão, a biblioteca pede uma assinatura ao serviço
-  Euler Stream (eulerstream.com), que recebe **só o @ da live**. Sem chave vale um limite
+  Euler Stream (eulerstream.com). Ele recebe **o @ da live, o número da sala, o tipo de
+  navegador que a biblioteca anuncia e o endereço de internet do seu computador** (como
+  qualquer site que você visita), além da chave, quando houver. **Não** recebe senha, cookie
+  nem dados de quem assiste. Quando o TikTok não informa o número da sala, a biblioteca também
+  pergunta ao Euler Stream (última tentativa), e isso conta no limite. Sem chave vale um limite
   gratuito da comunidade; se aparecer o aviso de limite no painel, uma chave gratuita do
   site aumenta esse limite. Nenhum recurso pago é usado. Se um dia o serviço passar a
   cobrar pelo que o jogo usa, a leitura para e o painel avisa.

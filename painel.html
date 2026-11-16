@@ -37,6 +37,7 @@
             <input type="text" id="tt-usuario" placeholder="@suaconta" maxlength="80" spellcheck="false" autocapitalize="off" />
           </label>
           <button class="btn grande primario" id="tt-botao" type="submit">Conectar</button>
+          <button class="btn grande" id="tt-agora" type="button" hidden title="Tenta conectar agora, sem esperar a próxima conferência">Conferir agora</button>
         </form>
         <p class="entrada-erro" id="tt-erro" role="alert" hidden></p>
         <div class="tt-estado">
@@ -50,14 +51,15 @@
           <div><strong id="tt-curtidas">0</strong><span>curtidas</span></div>
           <div><strong id="tt-fila">0</strong><span>entraram na fila</span></div>
         </div>
+        <p class="dica tt-outros" id="tt-outros">Seguidores: 0 · Compartilhamentos: 0 · Efeitos pedidos por presentes: 0</p>
         <details class="tt-mais">
           <summary>O que cada situação quer dizer</summary>
           <ul class="tt-lista">
             <li><b>Desligado:</b> o jogo não está lendo a live. Escreva o @ e clique em Conectar.</li>
             <li><b>Conectando:</b> abrindo a conexão. Leva alguns segundos.</li>
-            <li><b>Esperando a live começar:</b> o @ está certo, mas você ainda não está ao vivo. Pode deixar assim: quando a live começar, o jogo conecta sozinho.</li>
+            <li><b>Esperando a live começar:</b> você ainda não está ao vivo (ou o TikTok ainda não mostrou a live). Pode deixar assim: quando a live começar, o jogo conecta sozinho. Para não esperar a próxima conferência, clique em <b>Conferir agora</b>.</li>
             <li><b>Ao vivo:</b> tudo certo. Os números acima sobem conforme chegam comentários e presentes.</li>
-            <li><b>Reconectando:</b> a conexão caiu ou o TikTok recusou desta vez. O jogo tenta de novo sozinho, esperando um pouco mais a cada vez (até 1 minuto). Se não voltar, confira a internet.</li>
+            <li><b>Reconectando:</b> a conexão caiu ou o TikTok recusou desta vez. O jogo tenta de novo sozinho, esperando um pouco mais a cada vez (até 1 minuto). <b>Conferir agora</b> tenta na hora. Se não voltar, confira a internet.</li>
             <li><b>Precisa de atenção:</b> algo que não se resolve sozinho, como um @ escrito errado. Leia a mensagem ao lado, corrija e clique em Conectar.</li>
           </ul>
           <p class="dica">
@@ -68,7 +70,8 @@
         <details class="tt-mais">
           <summary>Chave do Euler Stream (opcional)</summary>
           <p class="dica">
-            A conexão com a live passa por um serviço gratuito chamado Euler Stream, que recebe só o @ da sua live.
+            A conexão com a live passa por um serviço gratuito chamado Euler Stream. Ele recebe o @ da sua live, o número
+            da sala e o endereço de internet deste computador (como qualquer site); não recebe senha, cookie nem dados de quem assiste.
             Sem chave, vale o limite gratuito da comunidade. Se aparecer aviso de limite, crie uma chave gratuita no
             site eulerstream.com e cole aqui. A chave fica só no servidor: este painel nunca mostra ela de volta.
           </p>

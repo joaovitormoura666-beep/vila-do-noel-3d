@@ -2,26 +2,29 @@
 rem ===========================================================================
 rem  Vila do Noel Live - atalho do Windows (dois cliques para abrir o jogo)
 rem
-rem  1. confere se o Node.js 20 ou mais novo esta instalado (se nao, explica e
+rem  1. confere se o Node.js 22 ou mais novo esta instalado (se nao, explica e
 rem     abre a pagina de download);
 rem  2. confere se a porta 3000 esta livre (se o jogo ja esta aberto, so abre
 rem     o painel; se outro programa usa a porta, oferece a porta 3100);
-rem  3. roda "npm install" so quando precisa (primeira vez ou package.json mudou);
-rem  4. compila as paginas (jogo 3D, versao classica 2D e painel), liga o
-rem     servidor em http://localhost:3000 e abre o painel no navegador.
+rem  3. confere se outra janela deste atalho ja esta preparando o jogo (dois
+rem     cliques repetidos nao rodam duas instalacoes ao mesmo tempo);
+rem  4. roda "npm install" so quando precisa (primeira vez ou package.json mudou);
+rem  5. compila as paginas (jogo 3D, versao classica 2D e painel), liga o
+rem     servidor em http://localhost:3000 e abre o painel no navegador;
+rem  6. se o servidor parar por um erro, pergunta se pode abrir de novo.
 rem
 rem  Sem acentos de proposito: o cmd do Windows estraga letras acentuadas.
 rem  O passo a passo completo esta em docs\COMO-RODAR-NA-LIVE.md.
 rem ===========================================================================
 setlocal
 chcp 65001 >nul 2>nul
-title Vila do Noel Live
+title Vila do Noel - servidor (nao feche)
 cd /d "%~dp0"
 if not defined PORT set PORT=3000
 
 echo.
 echo  ==============================================
-echo     Vila do Noel Live
+echo     Vila do Noel Live - servidor do jogo
 echo  ==============================================
 echo.
 
@@ -30,10 +33,8 @@ if not exist "tools\windows.cjs" goto sem_pasta
 
 where node >nul 2>nul
 if errorlevel 1 goto sem_node
-node -e "process.exit(Number(process.versions.node.split('.')[0]) >= 20 ? 0 : 1)"
-if errorlevel 1 goto node_antigo
 node -e "process.exit(Number(process.versions.node.split('.')[0]) >= 22 ? 0 : 1)"
-if errorlevel 1 echo  Aviso: o Node.js deste computador e antigo. Funciona, mas instale o 22 LTS quando puder.
+if errorlevel 1 goto node_antigo
 where npm >nul 2>nul
 if errorlevel 1 goto sem_node
 
@@ -42,11 +43,15 @@ node tools\windows.cjs porta %PORT%
 if errorlevel 2 goto porta_ocupada
 if errorlevel 1 goto ja_aberto
 
+node tools\windows.cjs travar
+if errorlevel 3 goto ja_preparando
+
 node tools\windows.cjs precisa-instalar
 if errorlevel 1 goto iniciar
 
 echo  Instalando os componentes do jogo (primeira vez, ou o projeto foi
 echo  atualizado). Isso leva alguns minutos e precisa de internet. Aguarde...
+echo  Nao abra o iniciar.bat de novo enquanto isso.
 echo.
 call npm install --no-audit --no-fund
 if errorlevel 1 goto erro_instalar
@@ -65,9 +70,39 @@ echo  Para encerrar: feche esta janela (ou abra o parar.bat).
 echo.
 set VILA_ABRIR=1
 call npm start
+if errorlevel 1 goto parou_com_erro
+goto encerrado
+
+:parou_com_erro
+node tools\windows.cjs destravar
+echo.
+echo  [!] O servidor do jogo parou por um erro (a mensagem com [erro] acima
+echo      explica o motivo). As telas abertas voltam sozinhas quando ele subir.
+echo.
+choice /c SN /n /m "     Abrir o jogo de novo agora? Aperte S (sim) ou N (nao): "
+if errorlevel 2 goto encerrado
+echo.
+rem  na volta o painel ja esta aberto: nao abre outra aba
+set VILA_ABRIR=0
+if not exist "dist\index.html" goto reabrir_compilando
+node tools\windows.cjs porta %PORT%
+if errorlevel 2 goto porta_ocupada
+if errorlevel 1 goto ja_aberto
+echo  Abrindo o servidor de novo (sem compilar: a tela do jogo ja esta pronta)...
+echo.
+call npm run servidor
+if errorlevel 1 goto parou_com_erro
+goto encerrado
+
+:reabrir_compilando
+call npm start
+if errorlevel 1 goto parou_com_erro
+goto encerrado
+
+:encerrado
+node tools\windows.cjs destravar
 echo.
 echo  O jogo foi encerrado.
-echo  Se apareceu alguma mensagem com [erro] acima, ela explica o motivo.
 echo  Para abrir de novo, de dois cliques no iniciar.bat.
 echo.
 pause
@@ -80,6 +115,16 @@ echo.
 echo  Para fechar o jogo: feche a outra janela, ou abra o parar.bat.
 echo.
 start "" "http://localhost:%PORT%/painel.html"
+pause
+exit /b 0
+
+:ja_preparando
+echo  [!] A Vila do Noel ja esta sendo preparada em outra janela preta
+echo      (instalando ou compilando). Espere ela terminar: o painel abre
+echo      sozinho no navegador quando estiver pronto.
+echo.
+echo      Esta janela pode ser fechada.
+echo.
 pause
 exit /b 0
 
@@ -99,6 +144,7 @@ set PORT=3100
 echo.
 goto conferir_porta
 :porta_ocupada_fim
+node tools\windows.cjs destravar
 echo.
 pause
 exit /b 1
@@ -108,7 +154,8 @@ echo  [!] Nao achei os arquivos do jogo ao lado deste iniciar.bat.
 echo.
 echo      Se voce abriu o .zip com dois cliques, primeiro extraia tudo:
 echo      clique com o botao direito no .zip, escolha "Extrair tudo",
-echo      e abra o iniciar.bat de dentro da pasta extraida.
+echo      e abra o iniciar.bat de dentro da pasta extraida. Se dentro da
+echo      pasta extraida houver so outra pasta com o mesmo nome, entre nela.
 echo.
 pause
 exit /b 1
@@ -126,7 +173,8 @@ pause
 exit /b 1
 
 :node_antigo
-echo  [!] O Node.js deste computador e antigo demais (precisa do 20 ou mais novo).
+echo  [!] O Node.js deste computador e antigo demais (precisa do 22 ou mais novo).
+echo      A leitura da live do TikTok nao funciona com versoes mais velhas.
 echo.
 echo      1. Vou abrir o site https://nodejs.org no navegador
 echo      2. Baixe a versao "LTS" (22 ou mais nova) e instale por cima
@@ -137,6 +185,7 @@ pause
 exit /b 1
 
 :erro_instalar
+node tools\windows.cjs destravar
 echo.
 echo  [!] Algo deu errado ao instalar os componentes.
 echo      Confira a internet e abra o iniciar.bat de novo.

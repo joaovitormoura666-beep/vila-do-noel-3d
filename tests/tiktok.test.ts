@@ -12,6 +12,7 @@ import { TikTokConfigStore } from '../server/settingsStore';
 import {
   ConversorTikTok,
   TikTokSource,
+  NodeAntigoError,
   classificarErro,
   esperaReconexao,
   type ConectorTikTok,
@@ -177,6 +178,10 @@ describe('TikTok: limpeza do @ e classificação de erros', () => {
     expect(classificarErro(new InvalidUniqueIdError('bad'))).toEqual({ tipo: 'usuario_invalido' });
     expect(classificarErro(Object.assign(new Error('getaddrinfo ENOTFOUND www.tiktok.com'), { code: 'ENOTFOUND' }))).toEqual({ tipo: 'sem_internet' });
     expect(classificarErro(new Error('Failed to retrieve Room ID from all sources.'))).toEqual({ tipo: 'nao_encontrado' });
+    // Node antigo (got 15 da biblioteca exige o 22): avisado antes de carregar a biblioteca
+    expect(classificarErro(new NodeAntigoError('Node.js 20.3.0 é antigo demais'))).toEqual({ tipo: 'node_antigo' });
+    // um SyntaxError qualquer (ex.: resposta estranha do TikTok) NÃO vira "Node antigo"
+    expect(classificarErro(new SyntaxError('Unexpected token < in JSON at position 0'))).toEqual({ tipo: 'outro' });
     // erro composto da biblioteca cujo motivo de dentro é falta de internet (visto com a biblioteca real, sem rede)
     const semRede = Object.assign(new Error('Failed to retrieve Room ID from all sources.'), {
       config: { requestErrs: [Object.assign(new Error('getaddrinfo ENOTFOUND www.tiktok.com'), { code: 'ENOTFOUND' })] },
@@ -307,6 +312,65 @@ describe('TikTok: conexão, espera da live, reconexão e troca de @', () => {
     expect(criados).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1_000);
     expect(fonte.status.state).toBe('conectado');
+    fonte.stop();
+  });
+
+  it('sem número da sala (conta fora do ar): espera a live como "Esperando a live começar", sem "Reconectando"', async () => {
+    let aoVivo = false;
+    const { fonte, criados } = montar([
+      () => {
+        if (!aoVivo) throw new Error('Failed to retrieve Room ID from all sources.');
+      },
+    ]);
+    fonte.configurar({ usuario: 'canal.teste', ligado: true, chave: null });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fonte.status.state).toBe('aguardando_live');
+    expect(fonte.status.mensagem).toMatch(/Ainda não encontrei a live de @canal\.teste/);
+    // confere de novo no ritmo da live desligada (30 s), não no da reconexão (2 s, 4 s...)
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(criados).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(criados).toHaveLength(2);
+    aoVivo = true;
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(fonte.status.state).toBe('conectado');
+    // depois de uma conexão boa, a explicação muda: a live pode ter terminado
+    aoVivo = false;
+    criados[2].emit('disconnected', { code: 1006 });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(fonte.status.state).toBe('aguardando_live');
+    expect(fonte.status.mensagem).toMatch(/pode ter terminado/);
+    fonte.stop();
+  });
+
+  it('"Conferir agora" (mesmo @ ligado de novo) tenta na hora enquanto espera a live', async () => {
+    const { fonte, criados } = montar([
+      () => {
+        throw new UserOfflineError("The requested user isn't online :(");
+      },
+    ]);
+    fonte.configurar({ usuario: 'canal.teste', ligado: true, chave: null });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fonte.status.state).toBe('aguardando_live');
+    fonte.configurar({ usuario: 'canal.teste', ligado: true, chave: null }, true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(criados).toHaveLength(2);
+    expect(fonte.status.state).toBe('aguardando_live');
+    fonte.stop();
+  });
+
+  it('Node.js antigo: para e explica como atualizar (sem ficar tentando)', async () => {
+    const { fonte, criados } = montar([
+      () => {
+        throw new NodeAntigoError('Node.js 20.3.0 é antigo demais');
+      },
+    ]);
+    fonte.configurar({ usuario: 'canal.teste', ligado: true, chave: null });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fonte.status.state).toBe('erro');
+    expect(fonte.status.mensagem).toMatch(/Node\.js.*nodejs\.org/);
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(criados).toHaveLength(1);
     fonte.stop();
   });
 

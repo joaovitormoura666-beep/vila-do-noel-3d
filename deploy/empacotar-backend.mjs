@@ -1,6 +1,8 @@
 // npm run pacote:backend
 // Gera pacotes/backend/: o servidor num arquivo JavaScript só (servidor.mjs, com shared/ dentro),
-// um package.json mínimo (as dependências ws e tiktok-live-connector), os modelos de configuração da
+// um package.json mínimo (as dependências ws e tiktok-live-connector), o package-lock.json com as
+// versões exatas dessas dependências e das que elas puxam (tiradas do package-lock.json do projeto,
+// para a VM instalar com "npm ci" exatamente o que foi testado aqui), os modelos de configuração da
 // VM e o LEIA-ME.
 // Também gera pacotes/vila-do-noel-backend.zip.
 import { build } from 'esbuild';
@@ -29,7 +31,7 @@ await build({
   outfile: join(OUT, 'servidor.mjs'),
   bundle: true,
   platform: 'node',
-  target: 'node20',
+  target: 'node22',
   format: 'esm',
   // ws e a biblioteca do TikTok ficam como dependências normais (npm install); os opcionais do ws não são necessários
   external: ['ws', 'bufferutil', 'utf-8-validate', 'tiktok-live-connector'],
@@ -45,24 +47,20 @@ await build({
   charset: 'utf8',
 });
 
-writeFileSync(
-  join(OUT, 'package.json'),
-  JSON.stringify(
-    {
-      name: 'vila-do-noel-backend',
-      version: pkg.version,
-      private: true,
-      description: 'Vila do Noel Live - back-end (servidor de eventos, WebSocket e /api)',
-      type: 'module',
-      main: 'servidor.mjs',
-      scripts: { start: 'node servidor.mjs' },
-      engines: { node: '>=20' },
-      dependencies: { ws: wsVersion, 'tiktok-live-connector': tiktokVersion },
-    },
-    null,
-    2,
-  ) + '\n',
-);
+const pacoteBackend = {
+  name: 'vila-do-noel-backend',
+  version: pkg.version,
+  private: true,
+  description: 'Vila do Noel Live - back-end (servidor de eventos, WebSocket e /api)',
+  type: 'module',
+  main: 'servidor.mjs',
+  scripts: { start: 'node servidor.mjs' },
+  // a biblioteca do TikTok usa o got 15, que exige o Node 22
+  engines: { node: '>=22' },
+  dependencies: { ws: wsVersion, 'tiktok-live-connector': tiktokVersion },
+};
+writeFileSync(join(OUT, 'package.json'), JSON.stringify(pacoteBackend, null, 2) + '\n');
+writeFileSync(join(OUT, 'package-lock.json'), JSON.stringify(lockDoPacote(pacoteBackend), null, 2) + '\n');
 
 for (const f of ['.env.example', 'vila-do-noel.service', 'Caddyfile', 'Dockerfile', '.dockerignore', 'LEIA-ME.md']) {
   copyFileSync(join(MODELOS, f), join(OUT, f));
@@ -80,7 +78,66 @@ const zip = zipDirectory(OUT, ZIP, { prefix: 'vila-do-noel-backend/' });
 const kb = (n) => `${Math.round(n / 1024)} KB`;
 console.log(`  ✔ ${OUT}`);
 console.log(
-  `    servidor.mjs: ${kb(readFileSync(join(OUT, 'servidor.mjs')).length)}  (ws ${wsVersion} e tiktok-live-connector ${tiktokVersion} via npm install)`,
+  `    servidor.mjs: ${kb(readFileSync(join(OUT, 'servidor.mjs')).length)}  (ws ${wsVersion} e tiktok-live-connector ${tiktokVersion} via npm ci, versões fixas no package-lock.json)`,
 );
 console.log(`  ✔ ${ZIP}  (${zip.files} arquivos, ${kb(zip.bytes)})`);
 console.log('  Próximo passo: pacotes/backend/LEIA-ME.md\n');
+
+/**
+ * Monta o package-lock.json do pacote a partir do package-lock.json do projeto: só as entradas
+ * que as dependências do pacote alcançam (dependências, opcionais e "peer" obrigatórias),
+ * resolvidas como o Node resolve (primeiro node_modules aninhado, depois os de cima). Assim a VM
+ * instala com "npm ci" as mesmas versões que o projeto testou, em vez de resolver na hora.
+ */
+function lockDoPacote(pacote) {
+  const lock = JSON.parse(readFileSync(join(ROOT, 'package-lock.json'), 'utf8'));
+  if (!(lock.lockfileVersion >= 2) || !lock.packages) throw new Error('package-lock.json do projeto em formato antigo (rode npm install)');
+  const todos = lock.packages;
+  /** Acha onde "nome" é resolvido a partir da pasta "de" (ex.: node_modules/a/node_modules/b). */
+  const resolver = (de, nome) => {
+    let base = de;
+    for (;;) {
+      const tentativa = `${base ? `${base}/` : ''}node_modules/${nome}`;
+      if (todos[tentativa]) return tentativa;
+      if (!base) return null;
+      const i = base.lastIndexOf('/node_modules/');
+      base = i >= 0 ? base.slice(0, i) : '';
+    }
+  };
+  const incluidos = new Map();
+  const visitar = (de, deps, opcionais) => {
+    for (const nome of Object.keys(deps ?? {})) {
+      const onde = resolver(de, nome);
+      if (!onde) {
+        if (opcionais) continue; // opcional que não foi instalado aqui (de outro sistema)
+        throw new Error(`package-lock.json do projeto não tem ${nome} (pedido por ${de || 'o pacote'}); rode npm install`);
+      }
+      if (incluidos.has(onde)) continue;
+      const entrada = { ...todos[onde] };
+      delete entrada.dev;
+      delete entrada.devOptional;
+      delete entrada.peer;
+      incluidos.set(onde, entrada);
+      visitar(onde, entrada.dependencies, false);
+      visitar(onde, entrada.optionalDependencies, true);
+      const peerOpc = entrada.peerDependenciesMeta ?? {};
+      const peers = Object.fromEntries(Object.entries(entrada.peerDependencies ?? {}).filter(([n]) => !peerOpc[n]?.optional));
+      visitar(onde, peers, false);
+    }
+  };
+  visitar('', pacote.dependencies, false);
+  for (const [onde, entrada] of incluidos) {
+    if (!entrada.resolved || !entrada.integrity) throw new Error(`package-lock.json do projeto sem endereço ou conferência para ${onde}`);
+  }
+  const ordenados = [...incluidos.keys()].sort();
+  return {
+    name: pacote.name,
+    version: pacote.version,
+    lockfileVersion: 3,
+    requires: true,
+    packages: {
+      '': { name: pacote.name, version: pacote.version, dependencies: pacote.dependencies, engines: pacote.engines },
+      ...Object.fromEntries(ordenados.map((k) => [k, incluidos.get(k)])),
+    },
+  };
+}

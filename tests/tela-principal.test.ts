@@ -102,3 +102,28 @@ describe('servidor de arquivos do modo local (server/static.ts)', () => {
     expect((await fetch(`${base}/nao-existe.glb`)).status).toBe(404);
   });
 });
+
+describe('atalhos do Windows (.bat)', () => {
+  const bats = ['iniciar.bat', 'parar.bat', 'abrir-janela-da-live.bat', 'abrir-janela-da-live-grande.bat'];
+
+  it('usam a quebra de linha do Windows (CRLF) e só letras sem acento (o cmd estraga acentos)', () => {
+    for (const f of bats) {
+      const bruto = readFileSync(join(RAIZ, f));
+      const texto = bruto.toString('latin1');
+      expect(/[^\x00-\x7f]/.test(texto), `${f} tem caractere fora do ASCII`).toBe(false);
+      expect(/(^|[^\r])\n/.test(texto), `${f} tem quebra de linha sem \\r`).toBe(false);
+    }
+  });
+
+  it('o .gitattributes impede o git de trocar a quebra de linha dos .bat', () => {
+    expect(ler('.gitattributes')).toMatch(/^\*\.bat -text$/m);
+  });
+
+  it('o iniciar.bat exige o Node 22 (a biblioteca do TikTok precisa dele) e tem a trava contra duas janelas', () => {
+    const bat = ler('iniciar.bat');
+    expect(bat).toContain('>= 22 ? 0 : 1');
+    expect(bat).not.toContain('>= 20 ? 0 : 1');
+    expect(bat).toContain('windows.cjs travar');
+    expect(JSON.parse(ler('package.json')).engines.node).toBe('>=22');
+  });
+});
