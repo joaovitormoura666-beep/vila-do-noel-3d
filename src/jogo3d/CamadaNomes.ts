@@ -13,12 +13,16 @@ import type { Entrega3D } from './Entrega3D';
 import { ETIQUETAS, Posicionador, contarMaisN, type AreaProibida, type PedidoEtiqueta } from './etiquetas';
 import type { Etiqueta, Hud3D } from './hud';
 
-/** Lugares de reserva do selo "+N" (frações da área de jogo; o selo fica acima do ponto). */
+/**
+ * Lugares do selo "+N" (frações da área de jogo; o selo fica acima do ponto). Primeiro o canto de baixo à
+ * esquerda, onde a fila começa (quem chega entra por ali); depois os outros cantos de baixo. Lugar fixo:
+ * o selo não pula de um lado para o outro nem encosta no nome de quem está sendo atendido.
+ */
 const SELO_RESERVA: ReadonlyArray<[number, number]> = [
-  [0.86, 1.0],
   [0.14, 1.0],
-  [0.86, 0.9],
-  [0.14, 0.9],
+  [0.14, 0.93],
+  [0.86, 1.0],
+  [0.86, 0.93],
 ];
 
 function area(nome: string): AreaProibida {
@@ -164,13 +168,8 @@ export class CamadaNomes {
     // 2. os primeiros da fila que estão na tela
     const fila = this.diretor.filaNaTela(this.fila);
     let comNome = 0;
-    let primeiroSemNome: Caminhante | null = null;
-    for (let i = 0; i < fila.length; i++) {
+    for (let i = 0; i < fila.length && i < ETIQUETAS.maxFila; i++) {
       const c = fila[i];
-      if (i >= ETIQUETAS.maxFila) {
-        primeiroSemNome ??= c;
-        continue;
-      }
       const e = this.etiqueta(c);
       e.setAtual(false);
       const lugar = this.pos.colocar(this.pedir(c, e.w, e.h), this.proibidas);
@@ -178,7 +177,7 @@ export class CamadaNomes {
         e.mostrar(lugar.l, lugar.t, dt);
         usadas.add(c.id);
         comNome++;
-      } else primeiroSemNome ??= c;
+      }
     }
 
     // 3. "+N": quem espera sem o nome à mostra
@@ -189,15 +188,6 @@ export class CamadaNomes {
       sel.w = this.hud.maisW;
       sel.h = this.hud.maisH;
       let lugar = null;
-      if (primeiroSemNome) {
-        // perto da cabeça do primeiro da fila sem nome
-        const q2 = this.pedir(primeiroSemNome, sel.w, sel.h);
-        sel.x = q2.x;
-        sel.y = q2.y;
-        sel.pes = q2.pes;
-        lugar = this.pos.colocar(sel, this.proibidas);
-      }
-      // sem ninguém da fila na tela (ou sem lugar perto dele): nos cantos de baixo da área de jogo
       for (let k = 0; k < SELO_RESERVA.length && !lugar; k++) {
         const [fx, fy] = SELO_RESERVA[k];
         sel.x = ETIQUETAS.area.l + fx * (ETIQUETAS.area.r - ETIQUETAS.area.l);
