@@ -43,7 +43,7 @@ function curl(url, file, tries = 4) {
       return execFileSync('curl', argsCurl, { maxBuffer: 64 * 1024 * 1024 });
     } catch (err) {
       if (i >= tries - 1) throw new Error(`falha ao baixar ${url}: ${String(err.stderr || err.message).trim()}`);
-      execFileSync('sleep', [String(2 * (i + 1))]);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000 * (i + 1)); // pausa sem o comando sleep (não existe no Windows)
     }
   }
 }
