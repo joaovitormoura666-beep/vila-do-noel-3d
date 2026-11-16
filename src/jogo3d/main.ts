@@ -1,6 +1,7 @@
 /**
- * JOGO 3D da Vila do Noel (página jogo3d.html): a sala natalina 3D com o Noel sentado na poltrona, a fila de
- * gnomos e a entrega dos presentes, ligada à mesma camada de eventos do jogo 2D (servidor, painel, simulador).
+ * JOGO 3D da Vila do Noel, a TELA PRINCIPAL DA LIVE (index.html, servida em /; jogo3d.html é a mesma página):
+ * a sala natalina 3D com o Noel sentado na poltrona, a fila de gnomos e a entrega dos presentes, ligada à mesma
+ * camada de eventos do jogo 2D (servidor, painel, simulador).
  *
  * Reaproveita sem reescrever: a fila lógica (queue/QueueManager), o barramento (events/gameEvents), a conexão
  * com o servidor no papel 'game' (events/ServerConnection), as configurações (settingsState), os presentes
@@ -8,9 +9,17 @@
  * (ambient/AmbientDirector) e a qualidade automática (effects/PerformanceMonitor).
  *
  * Parâmetros do endereço:
- *   ?obs            só o que vai para a live (sem barra de demonstração, sem dicas de operação)
- *   ?demo=1         demonstração sem servidor: visitantes fictícios e botões (também liga sozinho se o servidor
- *                   não responder)
+ *   ?obs            só o que vai para a live (sem barra de demonstração, sem aviso de som, sem dicas de operação).
+ *                   Na fonte de navegador do OBS o som sai direto, sem clique.
+ *   ?janela=1       captura de janela (TikTok LIVE Studio): tenta acertar a janela em 9:16 (só funciona quando a
+ *                   janela foi aberta pelo painel ou pelo abrir-janela-da-live.bat). Com ?obs junto, o pedido de clique
+ *                   para o som aparece só no título da janela (fora da imagem) e some depois do clique.
+ *                   ?janela=540 ou ?janela=1080 pedem esse tamanho exato (540x960 ou 1080x1920).
+ *   ?depurar        mostra o FPS, o nível de qualidade e os números do palco (também no ?obs); o info() traz mais
+ *                   detalhes. ?fps mostra só a linha do FPS fora do ?obs (o mesmo que "Mostrar FPS" do painel).
+ *   ?demo=1         demonstração sem servidor: visitantes fictícios e botões. No laboratório e no npm run dev ela
+ *                   também liga sozinha se o servidor não responder; na página compilada (npm start, Cloudflare) e
+ *                   no ?obs, nunca: na live, gnomos fictícios não podem aparecer por causa de uma queda do servidor.
  *   ?manual=1       captura: nada anda sozinho; window.__jogo3d.frame(dt) avança a simulação (determinística)
  *   ?q=alta|media|baixa   força a qualidade (sem isso, segue o painel / automático pelo FPS)
  *   ?fila=N         começa com N visitantes fictícios já nos lugares (útil com manual=1)
@@ -95,6 +104,16 @@ const MANUAL = params.get('manual') === '1';
 const SEMENTE = params.get('semente') ?? 'vila';
 const QUALIDADE: Level | null = ((q) => (q === 'alta' || q === 'media' || q === 'baixa' ? q : null))(params.get('q'));
 const DEMO = params.get('demo') === '1';
+const DEPURAR = params.has('depurar');
+/** Captura de janela (LIVE Studio): 0 = desligado; 1 = acerta a largura pela altura; 540 ou 1080 = tamanho exato. */
+const JANELA = ((v) => (v === null ? 0 : v === '540' || v === '1080' ? Number(v) : 1))(params.get('janela'));
+/**
+ * Demonstração automática quando o servidor não responde: só no laboratório e no npm run dev (Vite em modo de
+ * desenvolvimento), nunca na página compilada nem no ?obs.
+ */
+const DEMO_SEM_SERVIDOR = import.meta.env.DEV && !OBS;
+/** Segundos do começo em que o monitor de FPS não mede (carga das texturas e compilação dos sombreadores). */
+const CARENCIA_FPS = 3;
 
 /** Três números separados por vírgula (?cam=7,3.2,11), ou o padrão. */
 function vetor(k: string, padrao: readonly [number, number, number]): [number, number, number] {
@@ -131,6 +150,10 @@ async function iniciar() {
     const palco = document.getElementById('palco')!;
     if (OBS) document.body.classList.add('obs');
     if (MANUAL) document.body.classList.add('manual');
+    if (JANELA) {
+      document.body.classList.add('janela');
+      ajustarJanela(JANELA);
+    }
 
     const stage = new Stage({ parent: palco, fixedResolution: MANUAL ? Math.min(2, Math.max(0.25, num('pr', 1))) : undefined, preserveDrawingBuffer: MANUAL });
     const nivelInicial: Level = QUALIDADE ?? 'alta';
@@ -286,7 +309,7 @@ async function iniciar() {
         {
           // sem servidor (página aberta sozinha, laboratório): liga a demonstração para o jogo não ficar parado
           onAttemptFailed: (tentativa) => {
-            if (tentativa === 1 && !conn?.online) ligarDemo(true);
+            if (DEMO_SEM_SERVIDOR && tentativa === 1 && !conn?.online) ligarDemo(true);
           },
         },
       );
@@ -374,8 +397,9 @@ async function iniciar() {
         const status = { ...diretor.status(perf.fps, stage.level), voice: audio.voice.info, audioLocked: audio.locked };
         conn?.send({ t: 'status', status });
         const i = stage.info();
+        // FPS e nível: com ?depurar (até no OBS, para medir lá); fora do OBS também com ?fps ou "Mostrar FPS" do painel
         hud.setStatus(
-          !OBS && (cfg.showFps || params.has('fps')),
+          DEPURAR || (!OBS && (cfg.showFps || params.has('fps'))),
           `${Math.round(perf.fps)} fps · ${stage.level} · ${i.drawCalls} desenhos · ${(i.triangles / 1000).toFixed(0)} mil tri · ${diretor.naTela} na tela`,
           cfg.paused,
         );
@@ -451,10 +475,13 @@ async function iniciar() {
 
     if (!MANUAL) {
       let ultimo = performance.now();
+      const inicio = ultimo;
       const loop = (agora: number) => {
         const dt = Math.min(0.1, Math.max(0, (agora - ultimo) / 1000));
         ultimo = agora;
-        perf.frame(agora);
+        // começa em 'alta' e só passa a medir depois da carência: os primeiros quadros (texturas subindo para a
+        // placa, sombreadores terminando de compilar) são lentos em qualquer computador e baixariam o nível à toa
+        if (agora - inicio > CARENCIA_FPS * 1000) perf.frame(agora);
         passo(dt);
         stage.render();
         requestAnimationFrame(loop);
@@ -508,13 +535,21 @@ function configurarBarra(barra: HTMLElement, sim: SimuladorDeVisitantes, efeito:
   desenhar();
 }
 
-/** O navegador só libera som depois de um clique; no OBS o som já sai direto. */
+/**
+ * O navegador comum só libera o som depois de um clique na página; a fonte de navegador do OBS libera sozinha.
+ * - Navegador comum: aviso discreto no pé da tela ("Clique na tela para ligar o som"), que some no primeiro clique.
+ * - ?obs: o aviso nunca aparece na imagem. Com ?obs&janela=1 (captura de janela, em que o som ainda precisa do
+ *   clique), o pedido vai para o título da janela, que fica fora da imagem capturada, e some depois do clique.
+ * O painel também avisa "A tela do jogo está sem som" enquanto o som estiver travado (status audioLocked).
+ */
 function configurarSom(audio: AudioManager) {
   const aviso = document.getElementById('som');
+  const tituloNormal = document.title;
   const tentar = async () => {
     const ok = await audio.unlock();
     if (ok) {
       aviso?.remove();
+      document.title = tituloNormal;
       window.removeEventListener('pointerdown', tentar);
       window.removeEventListener('keydown', tentar);
     }
@@ -523,8 +558,35 @@ function configurarSom(audio: AudioManager) {
   window.addEventListener('pointerdown', tentar);
   window.addEventListener('keydown', tentar);
   void tentar().then((ok) => {
-    if (!ok && aviso && !OBS) aviso.hidden = false;
+    if (ok) return;
+    if (aviso && !OBS) aviso.hidden = false;
+    if (JANELA || !OBS) document.title = `🔈 Clique na tela para ligar o som · ${tituloNormal}`;
   });
+}
+
+/**
+ * Captura de janela: deixa a área da página em 9:16 (sem faixas nas laterais para cortar). O navegador só deixa
+ * uma página mudar o tamanho da própria janela quando ela foi aberta por outra página (o botão do painel) ou como
+ * aplicativo (abrir-janela-da-live.bat); nos outros casos o pedido é ignorado e o jogo continua centralizado em 9:16.
+ */
+function ajustarJanela(modo: number) {
+  const acertar = () => {
+    try {
+      const dentroW = window.innerWidth;
+      const dentroH = window.innerHeight;
+      if (!dentroW || !dentroH) return;
+      const alvoH = modo === 1 ? dentroH : Math.min(modo === 1080 ? 1920 : 960, screen.availHeight - (window.outerHeight - dentroH));
+      const alvoW = Math.round((alvoH * 9) / 16);
+      const dw = alvoW - dentroW;
+      const dh = alvoH - dentroH;
+      if (Math.abs(dw) > 1 || Math.abs(dh) > 1) window.resizeBy(dw, dh);
+    } catch {
+      /* janela comum: o navegador não deixa; o jogo segue centralizado */
+    }
+  };
+  acertar();
+  // de novo depois que a janela termina de abrir (alguns navegadores só aplicam o tamanho final depois da carga)
+  window.setTimeout(acertar, 600);
 }
 
 /**

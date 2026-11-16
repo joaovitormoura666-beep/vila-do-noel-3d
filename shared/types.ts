@@ -1,8 +1,11 @@
 /**
  * Tipos compartilhados entre o servidor (Node) e os clientes (jogo e painel).
- * Toda fonte de eventos (simulador, webhook, futura integração TikTok)
+ * Toda fonte de eventos (simulador, webhook, leitura da live do TikTok)
  * precisa converter seus dados para `LiveEvent` antes de entrar no sistema.
  */
+
+import { DEFAULT_AMBIENT_GIFTS, type AmbientEffectId, type AmbientGiftRule } from './ambient.js';
+import type { TikTokPanelInfo } from './tiktok.js';
 
 export type LiveEventType = 'gift' | 'chat' | 'follow' | 'like' | 'share' | 'join';
 
@@ -18,6 +21,8 @@ export interface LiveEvent {
   avatarUrl?: string;
   giftName?: string;
   giftCount?: number;
+  /** Moedas por unidade do presente (no TikTok, diamondCount), quando a fonte informa. */
+  diamondCount?: number;
   /** Para presentes em sequência (combo): só o primeiro evento da sequência conta. */
   streakId?: string;
   comment?: string;
@@ -66,6 +71,8 @@ export interface Settings {
   idleHintSec: number;
   /** Texto de instrução exibido abaixo do título. */
   hintText: string;
+  /** Qual presente da live dispara qual efeito ambiente (padrão PROVISÓRIO; veja shared/ambient.ts). */
+  ambientGifts: AmbientGiftRule;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -85,6 +92,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showFps: false,
   idleHintSec: 45,
   hintText: 'Digite !presente no chat ou envie uma 🌹 para entrar na fila',
+  ambientGifts: DEFAULT_AMBIENT_GIFTS,
 };
 
 export interface GameStatus {
@@ -106,7 +114,15 @@ export interface GameStatus {
 
 export type GameCommand = 'skip' | 'clear' | 'test_voice' | 'reload';
 
-export type SimKind = 'rosa' | 'comando' | 'presente_aleatorio' | 'com_foto' | 'duplicado' | 'mesmo_usuario' | 'seguir';
+export type SimKind =
+  | 'rosa'
+  | 'comando'
+  | 'presente_aleatorio'
+  | 'presente_grande'
+  | 'com_foto'
+  | 'duplicado'
+  | 'mesmo_usuario'
+  | 'seguir';
 
 export interface LogEntry {
   ts: number;
@@ -140,7 +156,14 @@ export type ToServer =
   | { t: 'simulate'; kind: SimKind; count?: number }
   | { t: 'command'; cmd: GameCommand }
   | { t: 'settings'; patch: Partial<Settings> }
-  | { t: 'resetSettings' };
+  | { t: 'resetSettings' }
+  /** Painel: tocar um efeito ambiente agora na tela do jogo. */
+  | { t: 'ambient'; effect: AmbientEffectId }
+  /**
+   * Painel: configurar a leitura da live do TikTok. Só os campos enviados mudam.
+   * `chave`: texto define a chave do Euler Stream; null apaga a chave salva pelo painel.
+   */
+  | { t: 'tiktokConfig'; usuario?: string; ligado?: boolean; chave?: string | null };
 
 export type ToClient =
   /**
@@ -155,4 +178,8 @@ export type ToClient =
   | { t: 'settings'; settings: Settings }
   | { t: 'status'; status: GameStatus | null; games: number }
   | { t: 'log'; entry: LogEntry }
-  | { t: 'logHistory'; entries: LogEntry[] };
+  | { t: 'logHistory'; entries: LogEntry[] }
+  /** Tela do jogo: tocar um efeito ambiente (vindo do painel ou de um presente da live). */
+  | { t: 'ambient'; effect: AmbientEffectId; source: string }
+  /** Só o painel: situação da leitura da live do TikTok (a chave nunca vem). */
+  | { t: 'tiktok'; info: TikTokPanelInfo };

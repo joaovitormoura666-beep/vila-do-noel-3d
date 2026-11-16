@@ -1,9 +1,9 @@
 # Publicação: rodar no PC e separar servidor e páginas
 
 Há dois jeitos de rodar o jogo: tudo no PC da live (o jeito atual, sem nada para configurar) ou separado,
-com o servidor numa máquina virtual (VM) na internet e as páginas na Cloudflare Pages. A separação está
-**em construção**: os pacotes já são gerados para a versão 2D e para a sala 3D, mas o jogo 3D
-(`jogo3d.html`) ainda não entra neles.
+com o servidor numa máquina virtual (VM) na internet e as páginas na Cloudflare Pages. Desde 16/11/2026 o jogo 3D
+é a tela principal nos dois jeitos (`index.html`), e o 2D fica como versão clássica (`classico.html`). O passo a
+passo para o dono rodar a live no PC está em `docs/COMO-RODAR-NA-LIVE.md`.
 
 ## 1. Rodar no PC com Windows
 
@@ -44,12 +44,13 @@ O jogo 3D usa a mesma conexão do 2D (papel `game`), então o simulador e os com
 limpar, testar voz, recarregar, configurações) chegam a ele. Os botões dos efeitos ambientes ainda não
 existem no painel. Como esta parte está em construção, confira antes de usar numa live.
 
-### O jogo 2D (versão 1.0, que funciona)
+### A live no PC (jogo 3D como tela principal, desde 16/11/2026)
 
 Dois cliques em `iniciar.bat`, ou `npm start`. O painel abre em <http://localhost:3000/painel.html> e a tela
-da live em <http://localhost:3000/?obs>. O passo a passo completo, com o OBS e o LIVE Studio, está no
-`README.md`. Observação: `npm start` compila só o 2D e o painel (`vite.config.ts`); a página do jogo 3D ainda
-não é servida pela porta 3000.
+da live em <http://localhost:3000/?obs>, que agora é o **jogo 3D** (`index.html`; `jogo3d.html` é a mesma
+página). A versão 2D continua em <http://localhost:3000/classico.html>. `npm start` compila as quatro páginas
+(`vite.config.ts`) e copia `public/` para `dist/`. O passo a passo para o dono, com o TikTok LIVE Studio e o
+OBS, está em `docs/COMO-RODAR-NA-LIVE.md`.
 
 ### OBS
 
@@ -84,7 +85,7 @@ npm run pacotes
 | Pacote | Conteúdo | Passo a passo |
 | --- | --- | --- |
 | `pacotes/backend/` e `pacotes/vila-do-noel-backend.zip` | o servidor num arquivo só (`servidor.mjs`), `package.json`, `.env.example`, serviço do systemd, `Caddyfile`, `Dockerfile` opcional | `deploy/backend/LEIA-ME.md` |
-| `pacotes/frontend/` e `pacotes/vila-do-noel-frontend.zip` | tela do jogo 2D (`index.html`), painel, sala 3D (`demo-sala.html`, também em `/sala`), `config.json`, `_headers`, `_redirects`, os recursos de `public/` | `deploy/frontend/LEIA-ME.md` |
+| `pacotes/frontend/` e `pacotes/vila-do-noel-frontend.zip` | tela do jogo 3D (`index.html`, e `jogo3d.html` igual), versão clássica 2D (`classico.html`), painel, sala 3D (`demo-sala.html`, também em `/sala`), `config.json`, `_headers`, `_redirects`, a arte listada em `vite.jogo3d.recursos.json` e `public/audio` | `deploy/frontend/LEIA-ME.md` |
 
 ### Back-end na VM (resumo de `deploy/backend/LEIA-ME.md`)
 
@@ -114,11 +115,11 @@ aceita as páginas listadas em `ORIGENS_PERMITIDAS`. Os testes `tests/painel-aut
 
 ### O que ainda falta na separação
 
-- Incluir o jogo 3D (`jogo3d.html`) no pacote do front-end e nos endereços da Cloudflare (em construção).
-- Decidir qual página é a tela principal da live: hoje `index.html` é o 2D; o plano é passar o 3D para a
-  principal e deixar o 2D como versão clássica (decisão do dono).
-- Conferir o peso do pacote do front-end: ele copia todo `public/assets/` (cerca de 26 MB), incluindo
-  modelos do acervo que a sala A não usa.
+- Feito em 16/11/2026: o pacote do front-end tem o jogo 3D como tela principal (`index.html`), o 2D em
+  `classico.html`, o painel e a sala 3D, e copia só a arte listada em `vite.jogo3d.recursos.json` (116
+  arquivos, 17,3 MiB; o maior com 1,5 MiB, medido em 16/11/2026 por volta de 13:00 UTC).
+- Se a arte do jogo passar a usar outro modelo ou textura, refaça a lista com
+  `node tools/listar-recursos-jogo3d.cjs` (laboratório ligado); senão o recurso novo falta na Cloudflare.
 
 ## 3. O código no GitHub (repositório privado)
 

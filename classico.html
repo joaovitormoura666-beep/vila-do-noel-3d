@@ -1,0 +1,48 @@
+<!doctype html>
+<!--
+  Versão clássica (2D, Phaser) da tela da live: a versão 1.0, que continua funcionando.
+  A tela principal (index.html) passou a ser o jogo 3D. Endereço: /classico.html (e /classico.html?obs no OBS).
+-->
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vila do Noel Live — Versão clássica (2D)</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎄</text></svg>" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0d1626;
+        overflow: hidden;
+      }
+      #jogo {
+        width: 100vw;
+        height: 100vh;
+      }
+      canvas {
+        display: block;
+      }
+      #som {
+        position: fixed;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        background: rgba(13, 22, 38, 0.86);
+        color: #f7f4ef;
+        font: 600 15px 'Segoe UI', system-ui, sans-serif;
+        padding: 8px 16px;
+        border-radius: 999px;
+        border: 1px solid #e8bc65;
+        cursor: pointer;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="jogo"></div>
+    <div id="som" hidden>🔊 Clique na tela para ativar o som</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

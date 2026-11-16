@@ -4,9 +4,15 @@ Esta pasta tem as **páginas** do jogo, prontas para publicar na Cloudflare Page
 
 | Página | Endereço depois de publicar | Para que serve |
 | --- | --- | --- |
-| Tela do jogo | `https://vila-do-noel.pages.dev/` | A que vai para a transmissão (OBS). |
+| Tela do jogo (3D) | `https://vila-do-noel.pages.dev/` | A que vai para a transmissão (OBS): a Vila do Noel 3D. |
 | Painel de controle | `https://vila-do-noel.pages.dev/painel` | Só para você; pede a senha na primeira vez. |
+| Versão clássica (2D) | `https://vila-do-noel.pages.dev/classico` | A versão 1.0, em 2D, para comparar ou como reserva. |
 | Sala 3D (demonstração) | `https://vila-do-noel.pages.dev/sala` | Prévia do cenário 3D, funciona sem servidor. |
+
+A arte 3D (`assets/`) traz só os modelos e as texturas que o jogo usa (lista em
+`vite.jogo3d.recursos.json`, no projeto). Os endereços de tela levam as mesmas opções do modo
+local: `?obs` para o OBS e `?obs&janela=1` para captura de janela (veja
+`docs/COMO-RODAR-NA-LIVE.md` no projeto).
 
 As páginas não guardam senha nem segredo nenhum. Elas só precisam saber **onde está o
 back-end** (o servidor na VM), e isso fica no arquivo `config.json`, que você edita sem

@@ -16,10 +16,12 @@ Há duas versões no mesmo repositório:
 
 - **Versão 1.0, em 2D (Phaser 3.90).** Funciona de ponta a ponta: servidor de eventos, painel de
   controle, simulador, testes. O dono achou o visual fraco e mantém essa versão como arquivo e como
-  fonte da lógica que já funciona (fila, regras, frases, áudio). Página: `index.html`.
+  fonte da lógica que já funciona (fila, regras, frases, áudio). Página: `classico.html` (era o
+  `index.html` até 16/11/2026).
 - **Versão 3D (Three.js 0.187), em construção.** Uma sala natalina encantada com o Noel do dono
   sentado numa poltrona, gnomos visitantes e presentes 3D. A sala e os quatro efeitos ambientes estão
-  prontos; o jogo 3D jogável (`jogo3d.html`, `src/jogo3d/`) está em construção.
+  prontos; o jogo 3D jogável (`index.html` = `jogo3d.html`, `src/jogo3d/`) teve o visual aprovado pelo dono em
+  16/11/2026 e virou a tela principal da live (`/` e `/?obs` no servidor local).
 
 Papéis: o **dono** opera a conta do TikTok, roda tudo no PC com Windows e aprova o visual; o
 **ChatGPT** faz a direção criativa; o **Claude** (e outros agentes) faz a engenharia de software. O
@@ -72,12 +74,16 @@ pergunte.
 AGENTS.md, CLAUDE.md     regras para agentes (este arquivo)
 README.md                manual do jogo 2D para o dono (outro trabalho cuida dele)
 .env.demo                só VITE_AUTONOMO=1, usado por npm run demo (sem segredo, vai no git)
-index.html               tela da live 2D (Phaser)
+index.html               tela da live: o jogo 3D (src/jogo3d/main.ts), servida em / pelo servidor
+classico.html            versão clássica 2D (Phaser), em /classico.html
 painel.html              painel de controle (serve ao 2D e ao 3D)
 demo.html                demonstração 2D sem servidor (npm run demo)
 demo-sala.html           sala 3D sozinha com botões dos quatro efeitos (npm run sala)
-jogo3d.html              jogo 3D (em construção)
-iniciar.bat              atalho do Windows: npm install + npm start (2D)
+jogo3d.html              a mesma página do index.html (endereço antigo, usado pelo laboratório e pelas ferramentas)
+iniciar.bat              atalho do Windows: confere o Node, npm install só quando precisa, npm start, abre o painel
+parar.bat                encerra o servidor da Vila do Noel (só ele)
+abrir-janela-da-live.bat janela própria do Edge/Chrome em 9:16 para a captura de janela do TikTok LIVE Studio
+                         (os três .bat usam tools/windows.cjs; passo a passo em docs/COMO-RODAR-NA-LIVE.md)
 
 shared/                  tipos usados pelo servidor e pelas telas
   types.ts               eventos da live, participante, configurações (DEFAULT_SETTINGS)
@@ -140,12 +146,12 @@ Todos rodam na pasta do projeto (no Windows, no terminal do VS Code). Rode `npm 
 | `npm install` | Instala as dependências. |
 | `npm run lab` | Liga o laboratório 3D em `http://127.0.0.1:5180` (porta fixa). Serve `lab/index.html`, `demo-sala.html` e `jogo3d.html`. |
 | `npm run sala` | Gera em `dist-sala/` a página estática da sala 3D com os efeitos. |
-| `npm start` | Compila o 2D e liga o servidor em `http://localhost:3000` (é o que o `iniciar.bat` usa). |
+| `npm start` | Compila o jogo 3D (tela principal), o 2D clássico e o painel e liga o servidor em `http://localhost:3000` (é o que o `iniciar.bat` usa). |
 | `npm run servidor` | Liga só o servidor (sem compilar as páginas). |
 | `npm run dev` | Servidor + Vite em `http://127.0.0.1:5173`, recarregando ao salvar. |
 | `npm test` | Roda os testes (Vitest). Todos precisam passar. (O número muda a cada etapa: em 16/11/2026, por volta de 03:37 UTC, eram 7 arquivos e 102 testes, contando o novo `tests/jogo3d.test.ts`.) |
 | `npm run typecheck` | Confere os tipos (`tsc --noEmit`). |
-| `npm run build` | Compila o 2D e o painel em `dist/`. |
+| `npm run build` | Compila em `dist/` o jogo 3D, o 2D clássico e o painel (e copia `public/`). |
 | `npm run demo` | Gera a demonstração 2D sem servidor em `dist-demo/`. |
 | `npm run pacotes` | Gera em `pacotes/` o back-end para a VM e o front-end para a Cloudflare. Também `npm run pacote:backend` e `npm run pacote:frontend`. |
 | `node tools/shot.cjs <cena> ...` | Fotografa uma cena do laboratório (veja `docs/3D/LABORATORIO.md`). |

@@ -1,4 +1,9 @@
 <!doctype html>
+<!--
+  Jogo 3D da Vila do Noel: a MESMA página do index.html (a tela principal da live), com o endereço antigo, mantido
+  para o laboratório (npm run lab), as ferramentas de foto e vídeo (tools/shot.cjs, tools/gravar-jogo3d.cjs) e a
+  demonstração estática (vite.jogo3d.config.ts). Mantenha o corpo dos dois arquivos igual (há um teste que confere).
+-->
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -26,7 +31,7 @@
   <body>
     <div id="palco"></div>
     <div id="carregando">Carregando a Vila do Noel…</div>
-    <div id="som" hidden>🔊 Clique na tela para ativar o som</div>
+    <div id="som" role="button" tabindex="0" hidden>🔈 Clique na tela para ligar o som</div>
     <div id="demo" class="j3d-barra" role="group" aria-label="Controles da demonstração" hidden>
       <button class="botao principal" type="button" data-acao="um">🌹 Entrar 1</button>
       <button class="botao" type="button" data-acao="dez">Entrar 10</button>

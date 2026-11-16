@@ -55,6 +55,7 @@ export function parseExternalEvent(body: unknown, source: string): LiveEvent | n
     avatarUrl: typeof b.avatarUrl === 'string' ? b.avatarUrl.slice(0, 1000) : undefined,
     giftName: typeof b.giftName === 'string' ? b.giftName.slice(0, 60) : undefined,
     giftCount: Number(b.giftCount) || undefined,
+    diamondCount: Number.isFinite(Number(b.diamondCount)) && Number(b.diamondCount) > 0 ? Math.min(1_000_000, Number(b.diamondCount)) : undefined,
     streakId: typeof b.streakId === 'string' ? b.streakId.slice(0, 128) : undefined,
     comment: typeof b.comment === 'string' ? b.comment.slice(0, 300) : undefined,
     source,

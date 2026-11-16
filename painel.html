@@ -26,6 +26,96 @@
     </p>
 
     <main class="grade">
+      <section class="cartao largo destaque" id="cartao-tiktok">
+        <h2>Live do TikTok</h2>
+        <p class="dica">
+          O jogo lê os comentários e os presentes da sua live pelo @ da conta. Não precisa da senha do TikTok.
+          Quem digitar <b>!presente</b>, <b>!noel</b> ou <b>!fila</b> no chat, ou mandar um presente, entra na fila.
+        </p>
+        <form class="linha tt-linha" id="tt-form" autocomplete="off">
+          <label class="campo tt-campo">@ da sua conta
+            <input type="text" id="tt-usuario" placeholder="@suaconta" maxlength="80" spellcheck="false" autocapitalize="off" />
+          </label>
+          <button class="btn grande primario" id="tt-botao" type="submit">Conectar</button>
+        </form>
+        <p class="entrada-erro" id="tt-erro" role="alert" hidden></p>
+        <div class="tt-estado">
+          <span class="selo neutro" id="tt-selo">Desligado</span>
+          <span id="tt-mensagem">Escreva o @ da sua conta do TikTok e clique em Conectar.</span>
+        </div>
+        <p class="dica" id="tt-sala" hidden></p>
+        <div class="numeros tt-numeros">
+          <div><strong id="tt-comentarios">0</strong><span>comentários</span></div>
+          <div><strong id="tt-presentes">0</strong><span>presentes</span></div>
+          <div><strong id="tt-curtidas">0</strong><span>curtidas</span></div>
+          <div><strong id="tt-fila">0</strong><span>entraram na fila</span></div>
+        </div>
+        <details class="tt-mais">
+          <summary>O que cada situação quer dizer</summary>
+          <ul class="tt-lista">
+            <li><b>Desligado:</b> o jogo não está lendo a live. Escreva o @ e clique em Conectar.</li>
+            <li><b>Conectando:</b> abrindo a conexão. Leva alguns segundos.</li>
+            <li><b>Esperando a live começar:</b> o @ está certo, mas você ainda não está ao vivo. Pode deixar assim: quando a live começar, o jogo conecta sozinho.</li>
+            <li><b>Ao vivo:</b> tudo certo. Os números acima sobem conforme chegam comentários e presentes.</li>
+            <li><b>Reconectando:</b> a conexão caiu ou o TikTok recusou desta vez. O jogo tenta de novo sozinho, esperando um pouco mais a cada vez (até 1 minuto). Se não voltar, confira a internet.</li>
+            <li><b>Precisa de atenção:</b> algo que não se resolve sozinho, como um @ escrito errado. Leia a mensagem ao lado, corrija e clique em Conectar.</li>
+          </ul>
+          <p class="dica">
+            A leitura usa uma biblioteca gratuita e não oficial (tiktok-live-connector). Ela pode parar de funcionar se o
+            TikTok mudar algo; nesse caso, o simulador abaixo e os comandos continuam funcionando.
+          </p>
+        </details>
+        <details class="tt-mais">
+          <summary>Chave do Euler Stream (opcional)</summary>
+          <p class="dica">
+            A conexão com a live passa por um serviço gratuito chamado Euler Stream, que recebe só o @ da sua live.
+            Sem chave, vale o limite gratuito da comunidade. Se aparecer aviso de limite, crie uma chave gratuita no
+            site eulerstream.com e cole aqui. A chave fica só no servidor: este painel nunca mostra ela de volta.
+          </p>
+          <div class="linha obs-linha">
+            <input type="password" id="tt-chave" placeholder="cole a chave aqui" maxlength="200" autocomplete="off" aria-label="Chave do Euler Stream" />
+            <button class="btn" id="tt-chave-salvar" type="button">Salvar chave</button>
+            <button class="btn perigo" id="tt-chave-apagar" type="button">Apagar</button>
+          </div>
+          <p class="dica" id="tt-chave-info">Nenhuma chave salva (usando o limite gratuito).</p>
+        </details>
+      </section>
+
+      <section class="cartao" id="cartao-efeitos">
+        <h2>Efeitos da sala</h2>
+        <p class="dica">Toca um efeito agora na tela do jogo 3D. Um efeito por vez tem prioridade; os outros esperam a vez.</p>
+        <div class="linha efeitos-botoes">
+          <button class="btn dourado" data-efeito="TREE_SPARKLE" type="button">🎄 Árvore brilhando</button>
+          <button class="btn dourado" data-efeito="FIREPLACE_MAGIC" type="button">🔥 Lareira mágica</button>
+          <button class="btn dourado" data-efeito="SLEIGH_PASS" type="button">🛷 Trenó</button>
+          <button class="btn dourado" data-efeito="MAGICAL_NIGHT" type="button">🌌 Noite mágica</button>
+        </div>
+        <h3>Presentes da live que tocam efeitos</h3>
+        <p class="dica">
+          <b>Regra provisória</b>, para você ajustar: o valor do envio (moedas do presente x quantidade) escolhe o efeito.
+          0 desliga aquele efeito. Os presentes da lista "só fila" nunca tocam efeito.
+        </p>
+        <label class="chave"><input type="checkbox" id="ef-ligado" /> Presentes da live podem tocar efeitos</label>
+        <div class="duas">
+          <label class="campo">🎄 Árvore a partir de (moedas)
+            <input type="number" id="ef-min-TREE_SPARKLE" min="0" max="1000000" step="1" />
+          </label>
+          <label class="campo">🔥 Lareira a partir de (moedas)
+            <input type="number" id="ef-min-FIREPLACE_MAGIC" min="0" max="1000000" step="1" />
+          </label>
+          <label class="campo">🛷 Trenó a partir de (moedas)
+            <input type="number" id="ef-min-SLEIGH_PASS" min="0" max="1000000" step="1" />
+          </label>
+          <label class="campo">🌌 Noite mágica a partir de (moedas)
+            <input type="number" id="ef-min-MAGICAL_NIGHT" min="0" max="1000000" step="1" />
+          </label>
+        </div>
+        <label class="campo">Presentes que só colocam na fila, sem efeito (separados por vírgula)
+          <input type="text" id="ef-so-fila" maxlength="300" />
+        </label>
+        <button class="btn" id="ef-padrao" type="button">↩ Voltar à regra provisória</button>
+      </section>
+
       <section class="cartao largo" id="cartao-obs" hidden>
         <h2>Endereço para o OBS</h2>
         <p class="dica">
@@ -46,6 +136,7 @@
           <button class="btn" data-sim="comando">💬 Comando <b>!presente</b></button>
           <button class="btn" data-sim="presente_aleatorio">🎁 Outro presente</button>
           <button class="btn" data-sim="seguir">➕ Novo seguidor</button>
+          <button class="btn" data-sim="presente_grande" title="Um presente de 500 moedas (valor de teste): deve tocar um efeito pela regra do painel">✨ Presente grande</button>
         </div>
         <h3>Teste de carga</h3>
         <div class="linha">

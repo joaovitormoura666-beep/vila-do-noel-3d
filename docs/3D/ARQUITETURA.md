@@ -12,12 +12,12 @@ flowchart TD
   subgraph Fontes["Fontes de eventos (servidor)"]
     SIM["Simulador do painel<br/>server/integrations/SimulatorSource.ts"]
     API["POST /api/evento<br/>(ferramentas externas)"]
-    TT["TikTok (esboço, NÃO ativo)<br/>server/integrations/TikTokSource.stub.ts"]
+    TT["Live do TikTok (ligada no painel)<br/>server/integrations/TikTokSource.ts"]
   end
   SIM --> HUB
   API --> HUB
-  TT -.-> HUB
-  HUB["EventHub<br/>duplicados (dedup.ts) + regras (rules.ts)"] -- "WebSocket /ws: participant, command, settings" --> CONN
+  TT --> HUB
+  HUB["EventHub<br/>duplicados (dedup.ts) + regras (rules.ts)"] -- "WebSocket /ws: participant, command, settings, ambient" --> CONN
   PAINEL["Painel (painel.html, src/admin/)"] <-- "WebSocket" --> HUB
   CONN["ServerConnection (papel 'game')<br/>src/events/ServerConnection.ts"] --> BUS["Barramento do jogo<br/>src/events/gameEvents.ts"]
   BUS --> FILA["Fila lógica<br/>src/queue/QueueManager.ts"]
@@ -56,7 +56,9 @@ entrega → elenco, cenário e interface → palco 3D.
   só de hosts permitidos (`AVATAR_HOSTS_PERMITIDOS`) e só imagens comuns (SVG fica de fora). Todas as
   configurações, com explicação, estão em `deploy/backend/.env.example`.
 - `server/integrations/LiveSource.ts`: o contrato de uma fonte de eventos (`name`, `start(emit)`,
-  `stop()`). O simulador é a única fonte ligada. O TikTok é só um esboço, de propósito.
+  `stop()`). O simulador está sempre ligado; a leitura da live do TikTok (`TikTokSource.ts`) liga e
+  desliga pelo painel (veja `docs/INTEGRACAO.md`). O servidor também manda à tela do jogo os efeitos da sala
+  (`{ t: 'ambient', effect }`), pedidos pelo painel ou por presentes da live.
 - `server/settingsStore.ts` guarda as configurações do painel em `data/configuracoes.json`.
 
 Essa camada é a mesma para o 2D e o 3D. Detalhes do formato dos eventos: `docs/INTEGRACAO.md`.

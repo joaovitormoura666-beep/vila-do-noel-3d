@@ -22,7 +22,7 @@ Navegador (painel) ──┘                        └────────�
 | Arquivo | Para que serve |
 | --- | --- |
 | `servidor.mjs` | O servidor inteiro, num arquivo só. |
-| `package.json` | Lista a única peça que precisa ser instalada (`ws`) e o comando `npm start`. |
+| `package.json` | Lista as peças que precisam ser instaladas (`ws` e `tiktok-live-connector`, a leitura da live do TikTok) e o comando `npm start`. |
 | `.env.example` | Modelo das configurações, com explicação de cada uma. Vira o `.env`. |
 | `vila-do-noel.service` | Deixa o servidor ligado sempre (systemd), inclusive depois de reiniciar a VM. |
 | `Caddyfile` | Configuração do Caddy: HTTPS automático e gratuito na frente do servidor. |
@@ -375,3 +375,5 @@ Estão explicadas, uma por uma, no `.env.example`. As principais:
 | `MAX_TELAS` | `4` | Telas do jogo conectadas ao mesmo tempo. |
 | `SERVIR_FRONT` | `0` | `1` para este servidor também servir as páginas. |
 | `AVATAR_HOSTS_PERMITIDOS` | servidores do TikTok | De onde o proxy de fotos pode baixar. |
+| `TIKTOK_USUARIO` / `TIKTOK_LIGADO` | (vazio) / `0` | @ da live e se a leitura começa ligada. O painel muda e salva em `data/tiktok.json`. |
+| `EULER_API_KEY` | (vazio) | Chave opcional do Euler Stream para a leitura da live (nunca aparece no painel). Veja `docs/INTEGRACAO.md`. |

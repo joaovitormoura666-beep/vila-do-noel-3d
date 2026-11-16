@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { isLoopbackHost, parseOriginList, weakSecret } from './security.js';
+import { normalizarUsuarioTikTok } from '../shared/tiktok.js';
 
 /*
  * Configuração do servidor, toda vinda de variáveis de ambiente (ou do arquivo .env).
@@ -23,7 +24,11 @@ export const EMPACOTADO = typeof __VILA_PACOTE__ !== 'undefined' && __VILA_PACOT
 /** Pasta base: a raiz do projeto (rodando com tsx) ou a pasta do servidor empacotado. */
 export const ROOT = EMPACOTADO ? here : resolve(here, '..');
 
-/** Hosts de fotos de perfil aceitos pelo proxy de avatar quando o servidor está na internet. */
+/**
+ * Hosts de fotos de perfil aceitos pelo proxy de avatar (no computador e na VM): os servidores
+ * de imagens do TikTok, com todos os subdomínios (ex.: p16-sign-va.tiktokcdn.com).
+ * Para aceitar qualquer site público de novo: AVATAR_HOSTS_PERMITIDOS=* no .env.
+ */
 export const DEFAULT_AVATAR_HOSTS = ['tiktokcdn.com', 'tiktokcdn-us.com', 'tiktokcdn-eu.com', 'ibyteimg.com', 'byteimg.com', 'muscdn.com'];
 
 export interface ServerLimits {
@@ -81,6 +86,11 @@ export interface ServerConfig {
   version: string;
   /** Abrir o painel no navegador ao iniciar (usado pelo iniciar.bat). */
   openBrowser: boolean;
+  /**
+   * Leitura da live do TikTok vinda do .env (TIKTOK_USUARIO, TIKTOK_LIGADO, EULER_API_KEY).
+   * São só os valores iniciais: o que o dono muda no painel fica em data/tiktok.json e vale mais.
+   */
+  tiktok: { usuario: string | null; ligado: boolean | null; chave: string | null };
 }
 
 export interface ConfigResult {
@@ -182,9 +192,18 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env, root = ROOT, pa
       ? '*'
       : hostsRaw
         ? hostsRaw.split(/[\s,;]+/).map((h) => h.trim().toLowerCase().replace(/^\*?\./, '')).filter(Boolean)
-        : exposed
-          ? DEFAULT_AVATAR_HOSTS
-          : '*'; // no computador, como sempre foi: qualquer site público com https
+        : DEFAULT_AVATAR_HOSTS; // no computador e na VM: só os servidores de fotos do TikTok
+
+  const tiktokUser = (env.TIKTOK_USUARIO ?? '').trim();
+  if (tiktokUser && !normalizarUsuarioTikTok(tiktokUser)) {
+    warnings.push(`TIKTOK_USUARIO="${tiktokUser.slice(0, 40)}" não parece um @ do TikTok (use só letras, números, ponto e sublinhado). Ignorado.`);
+  }
+  const tiktokOn = (env.TIKTOK_LIGADO ?? '').trim();
+  const tiktok = {
+    usuario: normalizarUsuarioTikTok(tiktokUser),
+    ligado: tiktokOn === '' ? null : bool(tiktokOn, false),
+    chave: (env.EULER_API_KEY ?? '').trim() || null,
+  };
 
   const proxiesRaw = (env.PROXY_CONFIAVEL ?? '').trim();
   const trustedProxies = proxiesRaw ? proxiesRaw.split(/[\s,;]+/).filter(Boolean) : ['loopback'];
@@ -222,6 +241,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env, root = ROOT, pa
       limits,
       version: readVersion(root),
       openBrowser: env.VILA_ABRIR === '1',
+      tiktok,
     },
     errors,
     warnings,

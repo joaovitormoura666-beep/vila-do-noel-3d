@@ -124,7 +124,11 @@ describe('configuração do servidor', () => {
   it('sem nada configurado continua no modo local de sempre', () => {
     const { config, errors } = readConfig({}, '/tmp/vila', false);
     expect(errors).toEqual([]);
-    expect(config).toMatchObject({ host: '127.0.0.1', port: 3000, exposed: false, adminToken: null, serveFront: true, avatarHosts: '*' });
+    expect(config).toMatchObject({ host: '127.0.0.1', port: 3000, exposed: false, adminToken: null, serveFront: true });
+    // fotos de perfil: também no computador, só os servidores de imagens do TikTok (não qualquer site)
+    expect(config.avatarHosts).toContain('tiktokcdn.com');
+    expect(config.avatarHosts).not.toBe('*');
+    expect(readConfig({ AVATAR_HOSTS_PERMITIDOS: '*' }, '/tmp/vila', false).config.avatarHosts).toBe('*');
   });
 
   it('recusa subir na internet sem TOKEN_ADMIN', () => {

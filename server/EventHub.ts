@@ -10,6 +10,8 @@ import type {
   ToClient,
   ToServer,
 } from '../shared/types.js';
+import { AMBIENT_LABELS, giftToAmbientEffect, isAmbientEffect, type AmbientEffectId } from '../shared/ambient.js';
+import type { TikTokPanelInfo } from '../shared/tiktok.js';
 import { EventDeduper } from './dedup.js';
 import { cleanNickname, eventToParticipant } from './rules.js';
 import { TokenBucket } from './security.js';
@@ -36,7 +38,7 @@ interface Client {
  * coloque-a em PANEL_MESSAGES: assim ela já exige a senha.
  */
 const GAME_MESSAGES: ReadonlySet<ToServer['t']> = new Set(['status', 'queueResult', 'delivered']);
-const PANEL_MESSAGES: ReadonlySet<ToServer['t']> = new Set(['simulate', 'command', 'settings', 'resetSettings']);
+const PANEL_MESSAGES: ReadonlySet<ToServer['t']> = new Set(['simulate', 'command', 'settings', 'resetSettings', 'ambient', 'tiktokConfig']);
 
 export interface HubOptions {
   /**
@@ -59,6 +61,14 @@ export interface HubOptions {
   msgBurst?: number;
   /** Tempo para a conexão se identificar (mensagem hello) antes de ser fechada. */
   helloTimeoutMs?: number;
+  /** Situação da leitura da live do TikTok, mandada ao painel quando ele entra. */
+  tiktokInfo?: () => TikTokPanelInfo;
+  /** O painel mudou a configuração do TikTok (o servidor salva e reconecta). */
+  onTikTokConfig?: (msg: Extract<ToServer, { t: 'tiktokConfig' }>) => void;
+  /** A tela do jogo aceitou na fila alguém que veio desta fonte ('tiktok', 'simulador'...). */
+  onQueueAccepted?: (source: string) => void;
+  /** Um presente desta fonte pediu um efeito ambiente. */
+  onGiftEffect?: (source: string) => void;
 }
 
 const QUEUE_RESULTS: ReadonlySet<string> = new Set<QueueResult>(['aceito', 'duplicado', 'fila_cheia', 'aguardando_intervalo']);
@@ -122,7 +132,13 @@ export class EventHub {
   private deduper = new EventDeduper();
   private log: LogEntry[] = [];
   private lastStatus: GameStatus | null = null;
-  private counters = { recebidos: 0, duplicados: 0, ignorados: 0, enviados: 0 };
+  private counters = { recebidos: 0, duplicados: 0, ignorados: 0, enviados: 0, efeitos: 0 };
+  /** De que fonte veio cada participante enviado ao jogo (para contar quem entrou na fila por fonte). */
+  private sentFrom = new Map<string, string>();
+  /** Presentes que já pediram efeito (o mesmo evento repetido numa reconexão não pede de novo). */
+  private effectSeen = new Set<string>();
+  /** Proteção contra excesso de efeitos pedidos por presentes: 1 a cada 4 s, com folga de 3. */
+  private giftEffectBucket = new TokenBucket(0.25, 3);
 
   constructor(
     private readonly settings: SettingsStore,
@@ -135,6 +151,8 @@ export class EventHub {
   ingest(ev: LiveEvent) {
     this.counters.recebidos++;
     const cfg = this.settings.get();
+    // o efeito ambiente vale para todo presente, mesmo de quem já está na fila
+    if (ev.type === 'gift') this.giftEffect(ev);
     const participant = eventToParticipant(ev, cfg);
     if (!participant) {
       this.counters.ignorados++;
@@ -150,7 +168,57 @@ export class EventHub {
       return;
     }
     this.counters.enviados++;
+    this.sentFrom.set(ev.eventId, ev.source);
+    if (this.sentFrom.size > 3000) {
+      const oldest = this.sentFrom.keys().next().value;
+      if (oldest !== undefined) this.sentFrom.delete(oldest);
+    }
     this.broadcast('game', { t: 'participant', p: participant });
+  }
+
+  /* ---------- efeitos ambientes ---------- */
+
+  /** Aplica a regra "presente → efeito" do painel a um presente que chegou. */
+  private giftEffect(ev: LiveEvent) {
+    const match = giftToAmbientEffect(ev, this.settings.get().ambientGifts);
+    if (!match) return;
+    if (this.effectSeen.has(ev.eventId) || (ev.streakId && this.effectSeen.has(`s:${ev.streakId}`))) return;
+    this.effectSeen.add(ev.eventId);
+    if (ev.streakId) this.effectSeen.add(`s:${ev.streakId}`);
+    if (this.effectSeen.size > 4000) {
+      const oldest = this.effectSeen.values().next().value;
+      if (oldest !== undefined) this.effectSeen.delete(oldest);
+    }
+    const why = match.reason === 'moedas' ? `presente de ${match.coins} moedas` : 'presente';
+    // o registro não mostra quem mandou: só o presente e o efeito
+    const gift = String(ev.giftName ?? 'presente').slice(0, 40);
+    if (!this.giftEffectBucket.take()) {
+      this.addLog('warn', `Efeito ${AMBIENT_LABELS[match.effect]} não tocou (${gift}): presentes demais seguidos; a proteção segurou`);
+      return;
+    }
+    if (this.requestAmbient(match.effect, ev.source, `${why}: ${gift}`)) {
+      this.counters.efeitos++;
+      this.options.onGiftEffect?.(ev.source);
+    }
+  }
+
+  /**
+   * Manda a tela do jogo tocar um efeito ambiente. A prioridade, o descanso e o limite de
+   * efeitos ao mesmo tempo ficam com o AmbientDirector do jogo. Devolve false sem tela aberta.
+   */
+  requestAmbient(effect: AmbientEffectId, source: string, why: string): boolean {
+    if (this.gameCount() === 0) {
+      this.addLog('warn', `Efeito ${AMBIENT_LABELS[effect]} não tocou (${why}): a tela do jogo não está aberta`);
+      return false;
+    }
+    this.broadcast('game', { t: 'ambient', effect, source });
+    this.addLog('info', `✨ Efeito ${AMBIENT_LABELS[effect]} (${why})`);
+    return true;
+  }
+
+  /** Manda ao painel a situação da leitura da live do TikTok. */
+  pushTikTok(info: TikTokPanelInfo) {
+    this.broadcast('panel', { t: 'tiktok', info });
   }
 
   /* ---------- conexões ---------- */
@@ -229,6 +297,13 @@ export class EventHub {
         const result = String(msg.result);
         if (!QUEUE_RESULTS.has(result) || !client.logBucket.take()) return;
         this.addLog(result === 'aceito' ? 'ok' : 'warn', `${cleanNickname(msg.nickname)} ${RESULT_TEXT[result] ?? result}`);
+        if (result === 'aceito') {
+          const source = this.sentFrom.get(String(msg.eventId));
+          if (source) {
+            this.sentFrom.delete(String(msg.eventId));
+            this.options.onQueueAccepted?.(source);
+          }
+        }
         break;
       }
       case 'delivered':
@@ -256,6 +331,13 @@ export class EventHub {
         this.addLog('info', 'Configurações restauradas para o padrão');
         this.warnIfNotSaved();
         break;
+      case 'ambient':
+        if (!isAmbientEffect(msg.effect)) return;
+        this.requestAmbient(msg.effect, 'painel', 'pedido pelo painel');
+        break;
+      case 'tiktokConfig':
+        this.options.onTikTokConfig?.(msg);
+        break;
     }
   }
 
@@ -279,6 +361,7 @@ export class EventHub {
     this.send(client, { t: 'settings', settings: this.settings.get() });
     if (role === 'panel') {
       this.send(client, { t: 'logHistory', entries: this.log.slice(-150) });
+      if (this.options.tiktokInfo) this.send(client, { t: 'tiktok', info: this.options.tiktokInfo() });
     } else {
       this.addLog('ok', 'Tela do jogo conectada');
     }

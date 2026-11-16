@@ -1,12 +1,18 @@
 // npm run pacote:frontend
-// Gera pacotes/frontend/: as páginas estáticas prontas para a Cloudflare Pages
-// (tela do jogo, painel e a demonstração da sala 3D), com config.json de exemplo,
-// _headers, _redirects e o LEIA-ME. Também gera pacotes/vila-do-noel-frontend.zip.
+// Gera pacotes/frontend/: as páginas estáticas prontas para a Cloudflare Pages, com config.json
+// de exemplo, _headers, _redirects e o LEIA-ME. Também gera pacotes/vila-do-noel-frontend.zip.
+//
+// Páginas: a tela da live em 3D (index.html; jogo3d.html é a mesma página com o endereço antigo),
+// a versão clássica em 2D (classico.html), o painel (painel.html) e a sala 3D (demo-sala.html).
+// Arte: só os arquivos de public/ que o jogo 3D carrega de verdade (lista em
+// vite.jogo3d.recursos.json, gerada por tools/listar-recursos-jogo3d.cjs; a sala 3D usa os
+// mesmos), mais o public/assets/CREDITOS.md e a pasta public/audio. O acervo que o jogo não usa
+// fica de fora.
 //
 // Na Cloudflare ligada a um repositório: comando de build "npm run pacote:frontend",
 // pasta de saída "pacotes/frontend".
 import { build } from 'vite';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { listFiles, zipDirectory } from './zip.mjs';
@@ -15,6 +21,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'pacotes', 'frontend');
 const ZIP = join(ROOT, 'pacotes', 'vila-do-noel-frontend.zip');
 const MODELOS = join(ROOT, 'deploy', 'frontend');
+const PUBLICA = join(ROOT, 'public');
+const LISTA_RECURSOS = join(ROOT, 'vite.jogo3d.recursos.json');
 const semZip = process.argv.includes('--sem-zip');
 
 // Limites da Cloudflare Pages (plano gratuito)
@@ -37,13 +45,32 @@ await build({
     // /assets fica só para a arte de public/assets (nomes fixos)
     assetsDir: 'app',
     rollupOptions: {
-      // a tela do jogo e o painel já vêm do vite.config.ts; aqui entra a sala 3D
+      // a tela do jogo (3D), a versão clássica e o painel já vêm do vite.config.ts; aqui entra a sala 3D
       input: { sala: join(ROOT, 'demo-sala.html') },
     },
   },
+  // nada de copiar a pasta public inteira (o acervo tem modelos que o jogo não usa): a cópia vem abaixo
+  publicDir: false,
 });
 
-for (const page of ['index.html', 'painel.html', 'demo-sala.html']) {
+// Arte que o jogo 3D usa (a sala 3D usa a mesma sala A) e os créditos
+if (!existsSync(LISTA_RECURSOS)) {
+  throw new Error('falta vite.jogo3d.recursos.json: rode "node tools/listar-recursos-jogo3d.cjs" com o laboratório ligado');
+}
+const { arquivos: recursos } = JSON.parse(readFileSync(LISTA_RECURSOS, 'utf8'));
+for (const p of [...recursos, 'assets/CREDITOS.md']) {
+  const origem = resolve(PUBLICA, p);
+  if (!origem.startsWith(PUBLICA + sep)) throw new Error(`caminho fora de public/: ${p}`);
+  if (!existsSync(origem)) throw new Error(`recurso da lista não existe em public/: ${p} (rode de novo tools/listar-recursos-jogo3d.cjs)`);
+  const destino = join(OUT, p);
+  mkdirSync(dirname(destino), { recursive: true });
+  copyFileSync(origem, destino);
+}
+console.log(`  ✔ ${recursos.length} arquivos de arte do jogo 3D (vite.jogo3d.recursos.json) + CREDITOS.md`);
+// Áudios opcionais do dono (os LEIA-ME.txt são trocados abaixo pela versão da Cloudflare)
+if (existsSync(join(PUBLICA, 'audio'))) cpSync(join(PUBLICA, 'audio'), join(OUT, 'audio'), { recursive: true });
+
+for (const page of ['index.html', 'jogo3d.html', 'classico.html', 'painel.html', 'demo-sala.html']) {
   if (!existsSync(join(OUT, page))) throw new Error(`a página ${page} não foi gerada`);
   // a política de segurança (_headers) não permite scripts escritos dentro do HTML
   const html = readFileSync(join(OUT, page), 'utf8');

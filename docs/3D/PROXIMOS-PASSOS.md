@@ -61,13 +61,13 @@ Resumo; os detalhes estão nas `NOTAS.md` de cada área.
 - **Peças do kit:** veja o fim de `lab/fotos/kit-lareira/NOTAS.md`, `kit-arvore`, `kit-janela` e
   `kit-exterior`.
 
-## Integração com o TikTok (só depois da aprovação visual)
+## Integração com o TikTok
 
-O ponto de encaixe é `server/integrations/LiveSource.ts`, com o esboço em
-`server/integrations/TikTokSource.stub.ts`. Os caminhos possíveis e os riscos estão em `docs/INTEGRACAO.md`:
-uma ferramenta de lives chamando `POST /api/evento` (já funciona hoje), uma biblioteca não oficial (risco
-para a conta) ou um programa oficial do TikTok, se a conta tiver acesso. Não presuma acesso irrestrito à API
-oficial. A forma gratuita de entrar pelo chat continua obrigatória.
+O dono aprovou o visual (16/11/2026) e a leitura da live está feita: `server/integrations/TikTokSource.ts`,
+ligada no painel ("Live do TikTok"), com a biblioteca gratuita e não oficial `tiktok-live-connector`. Como
+funciona, os riscos (biblioteca não oficial, serviço Euler Stream, licença AGPL) e o que ainda falta conferir
+numa live de verdade estão em `docs/INTEGRACAO.md`. A forma gratuita de entrar pelo chat continua obrigatória.
+A regra "presente da live → efeito da sala" é **provisória** e está na tabela de perguntas abaixo.
 
 ## Perguntas criativas em aberto (para o dono e a direção criativa)
 
@@ -83,6 +83,7 @@ sem mexer na lógica.
 | O ritmo está bom? | Cerca de 10 s por pessoa, acelerando sozinho com a fila grande (até o dobro) | Painel, cartão "Ritmo"; agenda do 3D em `src/jogo3d/agenda.ts` |
 | Como deve ser a voz do Noel: gravada, gerada ou a do navegador? | Voz sintetizada do navegador, mais grave | `docs/AUDIO.md` |
 | O texto de instrução pode pedir presente na tela? (conferir as regras atuais do TikTok) | "Digite !presente no chat ou envie uma 🌹 para entrar na fila" | Painel, cartão "Como as pessoas entram" |
+| Qual presente da live dispara qual efeito da sala? | Pelo valor do envio: 5 moedas Árvore, 30 Lareira, 100 Trenó, 500 Noite mágica; a rosa só põe na fila | Painel, cartão "Efeitos da sala" (`DEFAULT_AMBIENT_GIFTS` em `shared/ambient.ts`) |
 | Onde ficam o chat e os botões do TikTok na conta do dono? | Zonas padrão: título de 190 a 420 px, jogo de 430 a 1480 px, chat abaixo de 1480 px | `src/jogo3d/hud.ts`, `lab/dados.ts` |
 | Quais eventos da live disparam cada efeito ambiente, e com que duração? | Nenhum ainda (só botões de teste) | `shared/ambient.ts` e, depois, o painel |
 | Outras escolhas provisórias | Fonte Fredoka, comandos `!presente`, `!noel` e `!fila`, fila com limite de 150, 11 visíveis, valsa de caixinha de música | Painel e `docs/DIRECAO-CRIATIVA.md` |

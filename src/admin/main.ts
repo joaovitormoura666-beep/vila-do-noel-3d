@@ -10,12 +10,15 @@ import {
   type Settings,
   type SimKind,
 } from '../../shared/types';
+import { AMBIENT_EFFECTS, DEFAULT_AMBIENT_GIFTS, isAmbientEffect, type AmbientGiftRule } from '../../shared/ambient';
+import { normalizarUsuarioTikTok, type TikTokPanelInfo, type TikTokState } from '../../shared/tiktok';
 import { checkHealth, loadBackend, type BackendInfo } from '../events/backend';
 import { ServerConnection } from '../events/ServerConnection';
 
 /**
  * Painel de controle (separado da tela da transmissão).
- * Envia simulações, comandos e configurações ao servidor (no computador ou na VM).
+ * Liga a leitura da live do TikTok, toca os efeitos da sala e envia simulações, comandos e
+ * configurações ao servidor (no computador ou na VM).
  * Quando o servidor exige senha (TOKEN_ADMIN), o painel pede na primeira vez e guarda
  * só neste navegador.
  */
@@ -167,9 +170,17 @@ const conn = new ServerConnection(
         $('log').innerHTML = '';
         msg.entries.forEach(addLog);
         break;
+      case 'tiktok':
+        tiktok = msg.info;
+        renderTikTok();
+        break;
     }
   },
   (online) => {
+    if (!online) {
+      tiktok = null;
+      renderTikTok();
+    }
     const el = $('selo-servidor');
     el.textContent = online ? 'Servidor: conectado' : 'Servidor: desconectado';
     el.title = serverLabel(conn.backend);
@@ -394,5 +405,181 @@ function addLog(entry: LogEntry) {
   while (list.children.length > 200) list.lastElementChild?.remove();
 }
 
+/* ---------- live do TikTok ---------- */
+
+/** Situação da leitura da live, vinda do servidor (null = servidor desconectado). */
+let tiktok: TikTokPanelInfo | null = null;
+/** O dono está digitando outro @ (não sobrescrever o campo com o que veio do servidor). */
+let ttEditing = false;
+
+const TT_SELO: Record<TikTokState, { text: string; cls: string }> = {
+  desligado: { text: 'Desligado', cls: 'neutro' },
+  conectando: { text: 'Conectando…', cls: 'aguardando' },
+  aguardando_live: { text: 'Esperando a live começar', cls: 'aguardando' },
+  conectado: { text: 'Ao vivo', cls: 'ok' },
+  reconectando: { text: 'Reconectando', cls: 'aguardando' },
+  erro: { text: 'Precisa de atenção', cls: '' },
+};
+
+const ttInput = $<HTMLInputElement>('tt-usuario');
+const ttError = $('tt-erro');
+
+function showTikTokError(text: string | null) {
+  ttError.textContent = text ?? '';
+  ttError.hidden = !text;
+}
+
+ttInput.addEventListener('input', () => {
+  ttEditing = true;
+  showTikTokError(null);
+  renderTikTok();
+});
+
+/** O @ digitado, já limpo, ou null quando está vazio ou inválido. */
+function typedUser(): string | null {
+  return normalizarUsuarioTikTok(ttInput.value);
+}
+
+$('tt-form').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  if (!tiktok) return;
+  const cfg = tiktok.config;
+  const typed = typedUser();
+  const changing = typed !== null && typed !== cfg.usuario;
+  // depois de um erro, o mesmo botão tenta de novo (ex.: o @ foi corrigido no TikTok)
+  const retry = tiktok.status.state === 'erro';
+  if (cfg.ligado && !changing && !retry) {
+    conn.send({ t: 'tiktokConfig', ligado: false });
+    return;
+  }
+  if (!typed) {
+    showTikTokError(
+      ttInput.value.trim()
+        ? 'Esse @ não parece uma conta do TikTok. Use só letras, números, ponto e sublinhado (ex.: @vila.do.noel).'
+        : 'Escreva o @ da sua conta do TikTok (o mesmo que aparece no seu perfil).',
+    );
+    ttInput.focus();
+    return;
+  }
+  showTikTokError(null);
+  ttEditing = false;
+  conn.send({ t: 'tiktokConfig', usuario: typed, ligado: true });
+});
+
+$('tt-chave-salvar').addEventListener('click', () => {
+  const input = $<HTMLInputElement>('tt-chave');
+  const key = input.value.trim();
+  if (!key) {
+    input.focus();
+    return;
+  }
+  conn.send({ t: 'tiktokConfig', chave: key });
+  // a chave não fica na página depois de enviada
+  input.value = '';
+});
+
+$('tt-chave-apagar').addEventListener('click', () => {
+  if (confirm('Apagar a chave do Euler Stream salva pelo painel?')) conn.send({ t: 'tiktokConfig', chave: null });
+});
+
+function renderTikTok() {
+  const selo = $('tt-selo');
+  const button = $<HTMLButtonElement>('tt-botao');
+  const info = tiktok;
+  if (!info) {
+    selo.textContent = 'Sem servidor';
+    selo.className = 'selo neutro';
+    $('tt-mensagem').textContent = 'O painel não está conectado ao servidor do jogo.';
+    button.disabled = true;
+    $('tt-sala').hidden = true;
+    return;
+  }
+  const { status, contadores, config } = info;
+  const look = TT_SELO[status.state] ?? TT_SELO.desligado;
+  selo.textContent = look.text;
+  selo.className = `selo ${look.cls}`.trim();
+  $('tt-mensagem').textContent = status.mensagem;
+
+  if (!ttEditing && document.activeElement !== ttInput) ttInput.value = config.usuario ? `@${config.usuario}` : '';
+  const typed = typedUser();
+  button.disabled = false;
+  if (config.ligado && typed && typed !== config.usuario) button.textContent = `Conectar a @${typed}`;
+  else if (config.ligado && status.state === 'erro') button.textContent = 'Conectar de novo';
+  else if (config.ligado) button.textContent = 'Desconectar';
+  else button.textContent = 'Conectar';
+  button.classList.toggle('primario', !config.ligado || (typed !== null && typed !== config.usuario));
+
+  const sala = $('tt-sala');
+  const parts: string[] = [];
+  if (status.state === 'conectado' && status.sala) parts.push(`Live: ${status.sala}`);
+  if (status.state === 'conectado' && status.espectadores) parts.push(`${status.espectadores.toLocaleString('pt-BR')} assistindo agora`);
+  sala.textContent = parts.join(' · ');
+  sala.hidden = parts.length === 0;
+
+  $('tt-comentarios').textContent = contadores.comentarios.toLocaleString('pt-BR');
+  $('tt-presentes').textContent = contadores.presentes.toLocaleString('pt-BR');
+  $('tt-curtidas').textContent = contadores.curtidas.toLocaleString('pt-BR');
+  $('tt-fila').textContent = contadores.entraramNaFila.toLocaleString('pt-BR');
+
+  $('tt-chave-info').textContent = !config.chaveDefinida
+    ? 'Nenhuma chave salva (usando o limite gratuito).'
+    : config.chaveOrigem === 'painel'
+      ? 'Chave salva pelo painel. Ela fica só no servidor.'
+      : 'Usando a chave do arquivo .env do servidor (EULER_API_KEY). Para trocar, salve outra aqui.';
+  $<HTMLButtonElement>('tt-chave-apagar').disabled = config.chaveOrigem !== 'painel';
+}
+
+/* ---------- efeitos da sala ---------- */
+
+document.querySelectorAll<HTMLButtonElement>('[data-efeito]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const effect = btn.dataset.efeito;
+    if (isAmbientEffect(effect)) conn.send({ t: 'ambient', effect });
+  });
+});
+
+/** Cópia da regra atual, para mudar um pedaço e mandar inteira. */
+function currentRule(): AmbientGiftRule {
+  const r = settings.ambientGifts ?? DEFAULT_AMBIENT_GIFTS;
+  return {
+    enabled: r.enabled,
+    onlyQueue: [...r.onlyQueue],
+    effects: Object.fromEntries(AMBIENT_EFFECTS.map((id) => [id, { minCoins: r.effects[id].minCoins, names: [...r.effects[id].names] }])) as AmbientGiftRule['effects'],
+  };
+}
+
+const efOn = $<HTMLInputElement>('ef-ligado');
+efOn.addEventListener('change', () => patch({ ambientGifts: { ...currentRule(), enabled: efOn.checked } }));
+for (const id of AMBIENT_EFFECTS) {
+  const input = $<HTMLInputElement>(`ef-min-${id}`);
+  input.addEventListener('change', () => {
+    const rule = currentRule();
+    rule.effects[id].minCoins = Math.max(0, Math.round(Number(input.value) || 0));
+    patch({ ambientGifts: rule });
+  });
+}
+const efOnlyQueue = $<HTMLInputElement>('ef-so-fila');
+efOnlyQueue.addEventListener('change', () => {
+  const rule = currentRule();
+  rule.onlyQueue = efOnlyQueue.value.split(',').map((n) => n.trim()).filter(Boolean);
+  patch({ ambientGifts: rule });
+});
+$('ef-padrao').addEventListener('click', () => {
+  if (confirm('Voltar a regra dos efeitos para a provisória?')) patch({ ambientGifts: DEFAULT_AMBIENT_GIFTS });
+});
+
+function renderEffects() {
+  const rule = settings.ambientGifts ?? DEFAULT_AMBIENT_GIFTS;
+  efOn.checked = rule.enabled;
+  for (const id of AMBIENT_EFFECTS) {
+    const input = $<HTMLInputElement>(`ef-min-${id}`);
+    if (document.activeElement !== input) input.value = String(rule.effects[id].minCoins);
+    input.disabled = !rule.enabled;
+  }
+  if (document.activeElement !== efOnlyQueue) efOnlyQueue.value = rule.onlyQueue.join(', ');
+}
+renderers.push(renderEffects);
+
 renderSettings();
 renderStatus(null, 0);
+renderTikTok();

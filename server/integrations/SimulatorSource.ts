@@ -10,7 +10,18 @@ const SUFFIX = [
   '', '_natal', '.gamer', '2026', '_oficial', '_br', 'zinha', 'zinho', '_luz', '_neve', '.star',
   '_rena', '_doce', '', '', '_xo', '777', '_sp', '_rj', '_mg',
 ];
-const GIFTS = ['Rosa', 'Rosquinha', 'Coração', 'Sorvete', 'GG', 'Bastão de luz'];
+/**
+ * Presentes fictícios com um valor em moedas por unidade, só para testar a regra
+ * "presente → efeito ambiente" do painel sem estar ao vivo (valores de teste, não da loja do TikTok).
+ */
+const GIFTS: Array<{ name: string; coins: number }> = [
+  { name: 'Rosa', coins: 1 },
+  { name: 'Rosquinha', coins: 30 },
+  { name: 'Coração', coins: 10 },
+  { name: 'Sorvete', coins: 1 },
+  { name: 'GG', coins: 1 },
+  { name: 'Bastão de luz', coins: 10 },
+];
 
 let counter = 0;
 
@@ -75,12 +86,19 @@ export class SimulatorSource implements LiveSource {
     switch (kind) {
       case 'rosa': {
         const u = this.randomUser();
-        emit(this.make('gift', u, { giftName: 'Rosa', giftCount: 1, avatarUrl: `/api/avatar-sim/${encodeURIComponent(u.id)}.svg` }));
+        emit(this.make('gift', u, { giftName: 'Rosa', giftCount: 1, diamondCount: 1, avatarUrl: `/api/avatar-sim/${encodeURIComponent(u.id)}.svg` }));
         break;
       }
       case 'presente_aleatorio': {
         const u = this.randomUser();
-        emit(this.make('gift', u, { giftName: GIFTS[Math.floor(Math.random() * GIFTS.length)], giftCount: 1 }));
+        const g = GIFTS[Math.floor(Math.random() * GIFTS.length)];
+        emit(this.make('gift', u, { giftName: g.name, giftCount: 1, diamondCount: g.coins }));
+        break;
+      }
+      case 'presente_grande': {
+        // um presente caro (valor de teste) para ver um efeito ambiente pela regra do painel
+        const u = this.randomUser();
+        emit(this.make('gift', u, { giftName: 'Presente grande (teste)', giftCount: 1, diamondCount: 500 }));
         break;
       }
       case 'comando': {

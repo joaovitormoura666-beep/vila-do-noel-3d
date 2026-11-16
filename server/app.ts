@@ -7,8 +7,10 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import type { DenyReason } from '../shared/types.js';
 import { ROOT, type ServerConfig } from './config.js';
 import { EventHub } from './EventHub.js';
-import { SettingsStore } from './settingsStore.js';
+import { SettingsStore, TikTokConfigStore } from './settingsStore.js';
 import { SimulatorSource } from './integrations/SimulatorSource.js';
+import { TikTokSource, type FabricaConector } from './integrations/TikTokSource.js';
+import type { TikTokPanelInfo } from '../shared/tiktok.js';
 import { proxyAvatar, simulatedAvatarSvg } from './avatars.js';
 import { parseExternalEvent } from './rules.js';
 import { serveStatic } from './static.js';
@@ -38,11 +40,16 @@ import {
  *   GET  /api/avatar-sim/x   foto fictícia do simulador
  *   POST /api/evento         entrada de eventos da live (com a senha, quando o servidor exige)
  *   WS   /ws                 tela do jogo e painel
+ *
+ * Fontes de eventos: o simulador do painel, a entrada /api/evento e a leitura da live do
+ * TikTok (server/integrations/TikTokSource.ts), ligada e desligada pelo painel.
  */
 export interface VilaServer {
   readonly config: ServerConfig;
   readonly hub: EventHub;
   readonly settings: SettingsStore;
+  readonly tiktok: TikTokSource;
+  readonly tiktokConfig: TikTokConfigStore;
   listen(): Promise<AddressInfo>;
   close(): Promise<void>;
 }
@@ -114,9 +121,22 @@ function rejectUpgrade(socket: Duplex, status: number, message: string) {
   socket.destroy();
 }
 
-export function createVilaServer(config: ServerConfig): VilaServer {
+export interface VilaServerDeps {
+  /** Troca a biblioteca do TikTok por um conector falso (usado nos testes). */
+  tiktokFactory?: FabricaConector;
+}
+
+export function createVilaServer(config: ServerConfig, deps: VilaServerDeps = {}): VilaServer {
   const settings = new SettingsStore(config.settingsFile);
   const simulator = new SimulatorSource();
+  // a configuração do TikTok fica à parte (data/tiktok.json): a chave do Euler Stream não vai para a tela do jogo
+  const tiktokConfig = new TikTokConfigStore(join(config.dataDir, 'tiktok.json'), config.tiktok);
+  const tiktok = new TikTokSource({
+    fabrica: deps.tiktokFactory,
+    aoMudar: () => hub.pushTikTok(tiktokInfo()),
+    registrar: (nivel, texto) => hub.addLog(nivel, texto),
+  });
+  const tiktokInfo = (): TikTokPanelInfo => ({ status: tiktok.status, contadores: tiktok.contadores, config: tiktokConfig.publicConfig() });
   const failures = new FailureLimiter();
   const originPolicy = { allowed: config.allowedOrigins, local: !config.exposed, sameHost: !config.exposed || config.serveFront };
   const startedAt = Date.now();
@@ -157,8 +177,34 @@ export function createVilaServer(config: ServerConfig): VilaServer {
     requiresToken: Boolean(config.adminToken),
     msgsPerSec: config.limits.msgsPerSec,
     msgBurst: config.limits.msgBurst,
+    tiktokInfo,
+    onTikTokConfig: (msg) => {
+      const erro = tiktokConfig.update({ usuario: msg.usuario, ligado: msg.ligado, chave: msg.chave });
+      if (erro) {
+        hub.addLog('erro', erro);
+        hub.pushTikTok(tiktokInfo());
+        return;
+      }
+      if (!tiktokConfig.lastSaveOk) {
+        hub.addLog('erro', 'O servidor não conseguiu gravar a configuração do TikTok (data/tiktok.json). Ela vale até o servidor reiniciar.');
+      }
+      if (msg.chave !== undefined) {
+        hub.addLog('info', msg.chave ? 'Chave do Euler Stream salva no servidor' : 'Chave do Euler Stream apagada do painel');
+      }
+      tiktok.configurar(tiktokConfig.get(), msg.ligado === true);
+      hub.pushTikTok(tiktokInfo());
+    },
+    onQueueAccepted: (source) => {
+      if (source === 'tiktok') tiktok.contarEntradaNaFila();
+    },
+    onGiftEffect: (source) => {
+      if (source === 'tiktok') tiktok.contarEfeito();
+    },
   });
   simulator.start((ev) => hub.ingest(ev));
+  tiktok.start((ev) => hub.ingest(ev));
+  // liga sozinho se o painel (ou o .env) deixou ligado da última vez
+  tiktok.configurar(tiktokConfig.get());
 
   /** Áudios opcionais (música licenciada e frases gravadas) que acompanham o front. */
   function listOptionalAudio() {
@@ -419,6 +465,8 @@ export function createVilaServer(config: ServerConfig): VilaServer {
     config,
     hub,
     settings,
+    tiktok,
+    tiktokConfig,
     listen() {
       return new Promise<AddressInfo>((resolvePromise, reject) => {
         const onError = (err: Error) => reject(err);
@@ -432,6 +480,7 @@ export function createVilaServer(config: ServerConfig): VilaServer {
     close() {
       clearInterval(heartbeat);
       simulator.stop();
+      tiktok.stop();
       hub.closeAll();
       wss.close();
       return new Promise<void>((resolvePromise) => {
