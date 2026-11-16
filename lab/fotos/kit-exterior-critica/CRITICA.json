@@ -1,0 +1,133 @@
+{
+ "nota": 6.5,
+ "veredito": "Tirei 35 fotos próprias em /home/user/vila-do-noel-3d/lab/fotos/kit-exterior-critica/ (inteira, miniatura, 8 teleobjetivas, giros -35/25/40/58, câmera lateral, junto do vidro, mergulho, contra-mergulho, trenó 0,2/0,5/0,57/0,8, aurora t=2/6/10, animação t=2/8/14, baixa, média, oclusão forçada, diorama visto de fora, piso da sala) e comparei com lab/referencia-clima.png.\n\nResposta à pergunta do dono: de frente, pela janela, o conjunto JÁ tem cara de ilustração de animação (vila na encosta com igrejinha, mantos de neve grossos nos telhados, sombras azuis compridas, poças quentes, cobalto rico, paralaxe real com o balanço da câmera). Mas ainda NÃO passa no teste \"nada de primitiva geométrica / brinquedo\": o bosque é feito de cones facetados de 5 lados (25 triângulos cada), o pinheiro de primeiro plano é recorte de papel escuro com almofadas tipo marshmallow, o lampião do jardim (o ponto mais brilhante do quadro) é um trapézio chapado com brilho pintado, e os galhos da árvore nua são polilinhas com quinas. São justamente os elementos mais próximos e maiores. Por isso pareceCinema = false.\n\nDois defeitos que o relato não viu ou atribuiu errado: (1) a faixa clara no pé do quadro NÃO é o piso do estúdio: é o terreno da peça que começa em D = -1 (z = +1 m) a cerca de 0,35 m de altura e invade a sala por toda a largura (foto 24-piso-da-sala-neve-invadindo.png; código em terreno.ts e PERFIL de relevo.ts); (2) em ângulo as bordas ficam escondidas, sim, mas o assunto some: com giro de 25 a 58 graus não se vê igreja, lua nem trenó, só cones e um morro (fotos 09, 10, 11, 33, 34, 35). Além disso o desenho da árvore grande muda também no nível médio (não só no baixo) e um galho grosso passa na frente da torre da igreja (fotos 21 e 22).\n\nNúmeros conferidos e corretos: 17 chamadas de desenho próprias, 140 431 triângulos no alto (quadro: 37 chamadas, 140 496); média 119 509; baixa 96 486 e 21 chamadas; 5 273 pontos; texturas somam 1 559 059 bytes (1 523 kB); as cinco linhas estão em public/assets/CREDITOS.md; sem Math.random/Date.now/setTimeout; nenhuma mensagem no console em nenhuma foto. Há folga enorme de orçamento (150 mil triângulos da peça contra 900 mil da cena): a economia nos cones e nos galhos não se justifica.",
+ "pareceCinema": false,
+ "manter": [
+  "Composição da vista frontal: igrejinha no alto da encosta como ponto focal, caminho em S, lua no terço superior esquerdo, árvore nua emoldurando a direita (01-inteira.png, 13-perto-do-vidro.png).",
+  "Mantos de neve dos telhados: grossos, arredondados, com beiral pendente e neve nos peitoris e chaminés; paredes de pedra e tábuas com textura real que aparece na tele (03-tele-vila.png, 07-tele-casas-direita.png).",
+  "Sombras assadas: sombras compridas das coníferas na encosta e da cerca na neve do jardim, sem serrilhado nem acne (01, 09, 14, 26).",
+  "Neve do chão: relevo de montes de vento, ondas finas, cristais discretos e sombra azul (14-mergulho-jardim.png).",
+  "Paleta: azul cobalto rico, nem cinza nem preto; céu contido, lua com mares e halo fino, nuvens finas, estrelas pequenas e sem exagero (15, 29).",
+  "Neve caindo em três profundidades legíveis (discos desfocados perto do vidro, médios, miúdos), movimento diferente entre t=2, 8 e 14, e paralaxe real do primeiro plano contra a vila com o balanço da câmera (23-anim-*).",
+  "Bordas do diorama escondidas em todos os ângulos testados (giro -35, 25, 40, 58 e câmera lateral).",
+  "Aurora: cores serenas (verde-água com franja violeta), intensidade contida, sem estourar; a cena inteira esfria junto (20-aurora-*).",
+  "Trenó: desenho do trenó em si (patim curvo, saco) e das galhadas é original e elegante; rastro contido, sem purpurina (28-treno-tele-lua.png).",
+  "Técnica: zero luzes de cena, 17 chamadas, geometria fundida, determinismo, 1,5 MB de recursos, nível baixo continua bonito sem pós-processamento, oclusão forçada não quebra nada (27)."
+ ],
+ "problemas": [
+  {
+   "gravidade": "critico",
+   "onde": "Terreno junto da vidraça: src/world/kit/exterior/terreno.ts (criarGeometriaTerreno, 'const D = -1 + ...') e PERFIL em relevo.ts (ponto [-1, 0.2]); foto 24-piso-da-sala-neve-invadindo.png, pé das fotos 01, 09, 10, 12",
+   "problema": "A malha de neve começa 1 m DENTRO da sala (z = +1) a cerca de 0,35 a 0,4 m acima do piso, com 44 m de largura. Em qualquer sala real vai aparecer uma língua de neve saindo do rodapé ao longo da parede da janela. O relato atribuiu isso ao piso do estúdio; é da peça.",
+   "comoCorrigir": "Começar a grade em D = 0.02 (nunca z > 0): trocar '-1 + (fundo + 1) * ...' por '0.02 + (fundo - 0.02) * ...' e tirar o ponto [-1, 0.2] do PERFIL. Fechar a borda com uma fileira extra de vértices descendo a y = -0.5 no mesmo z (saia), para não haver fresta vista de cima. Como garantia, no fragment shader do terreno: 'if (vPos.z > 0.0) discard;'. Aproveitar e expor a altura da neve encostada na casa (hoje 0,36 m fixos) como opção 'alturaNeveNaParede', porque um peitoril mais baixo que 0,75 m ficaria enterrado."
+  },
+  {
+   "gravidade": "critico",
+   "onde": "Bosque de coníferas (geometriaConifera em arvores.ts, InstancedMesh 'bosque' em index.ts); fotos 01, 04-tele-igreja.png, 09, 11-giro-58.png, 12",
+   "problema": "Cada conífera é uma pilha de 5 saias de 5 lados (25 triângulos): lê-se como cone de jogo low-poly já na lente do jogo e vira o assunto inteiro do quadro nas vistas em ângulo. As manchas escuras da 'poeira' de neve saem em blocos duros, parecendo defeito de textura. É exatamente a 'árvore com aparência de primitiva geométrica' que o dono proibiu.",
+   "comoCorrigir": "Há orçamento sobrando. (a) Geometria: 8 a 9 andares, 10 a 12 lados, barra irregular com pontas caídas (deslocar cada vértice da barra por ruído em raio e em y), cada andar com giro e inclinação próprios, ápice fino e torto; cerca de 200 triângulos x 300 instâncias próximas (D < 50) e manter a versão leve só para a crista distante, em dois InstancedMesh. (b) Melhor ainda para as próximas: impostores. Construir uma conífera detalhada com a mesma técnica do pinheiro (leques de agulhas + almofadas), renderizar uma vez em WebGLRenderTarget 4 variantes (cor + normal), e instanciar dois cartões cruzados com alphaTest 0.5 iluminados pelo mesmo shader de luar. (c) Trocar a mancha por limiar de ruído por neve contínua em cima de cada andar (cor de vértice clara no dorso, escura e esverdeada só sob a barra) e usar coordenada local do objeto no ruído, não vPos do mundo."
+  },
+  {
+   "gravidade": "critico",
+   "onde": "Pinheiro de primeiro plano, à esquerda, em escala real (construirPinheiro em arvores.ts); fotos 05-tele-pinheiro-lampiao.png, 31-recorte-lampiao.png, 10-giro-40.png",
+   "problema": "Leques de agulhas são polígonos planos verde-pretos em zigue-zague (recorte de papel) e a neve são almofadas lisas tipo marshmallow, com um chapéu de cogumelo na ponta. É o objeto mais próximo do público e o mais 'brinquedo' da peça; no giro de 40 graus aparece inteiro, como pagode low-poly.",
+   "comoCorrigir": "Refazer os ramos como tiras curvas com textura de agulhas recortada por alpha: pintar em canvas um atlas de raminhos (centenas de traços finos saindo de uma nervura, com variação de verde-azulado) + mapa de normais derivado, material do luar com alphaTest 0.4 e dupla face; 14 a 18 verticilos, 3 a 4 tiras sobrepostas por ramo, caimento irregular. Neve: malha deslocada por fbm com borda quebrada (não fechar em arco perfeito), espessura maior junto ao tronco, e deixar agulhas atravessarem a neve nas pontas. Ponta com guia fino e um punhado pequeno de neve assimétrico. Alternativa barata se faltar tempo: recuar o pinheiro para x menor de modo que só as pontas de três ou quatro ramos carregados entrem pela borda esquerda como silhueta."
+  },
+  {
+   "gravidade": "critico",
+   "onde": "Vista em ângulo (janela em parede lateral): fotos 09-giro-m35.png, 35-giro-25.png, 10-giro-40.png, 11-giro-58.png, 33 e 34 (trenó com giro)",
+   "problema": "A vila ocupa só cerca de 12 m para cada lado do eixo da janela e a lua, a igreja e o arco do trenó estão presos a esse eixo. Com giro de 35 graus sobra uma casa e cones; com 58 graus só cones e morro; com 25 graus o tronco da árvore grande fica no centro da janela tapando a vila. O trenó em progress 0,5 simplesmente não aparece em nenhum giro testado. Se uma das duas composições puser a janela na parede lateral, a peça não entrega vila, lua nem SLEIGH_PASS.",
+   "comoCorrigir": "Acrescentar a opção 'azimuteVista' (graus; direção de onde a câmera olha pela janela). No Relevo, girar as coordenadas de projeto (x, D) em torno do centro da janela por esse ângulo para tudo que está além do jardim, com mistura suave(8, 18, D) para o jardim continuar colado à parede; somar o mesmo ângulo a LUA_AZ, LUZ_AZ (e a luar.direcao), ao intervalo 'azimute' do trenó e ao eixo da aurora. Posicionar a árvore nua e o pinheiro em função do eixo (um de cada lado do cone de visão, nunca no centro). Fotografar de novo com giro 0, 30 e 50 conferindo igreja, lua e trenó dentro do vão."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Lampião do jardim, primeiro plano à esquerda (construirLampiao em casas.ts); fotos 01, 05, 31-recorte-lampiao.png, miniatura 01-inteira-mini.png",
+   "problema": "É o ponto mais brilhante e saturado do quadro inteiro e é o objeto modelado de forma mais pobre: quatro vidros trapezoidais chapados com duas manchas de brilho pintadas, poste de seção quadrada preto, travessa em barra, tampa de neve em cone facetado. Na miniatura de celular ele puxa o olho para fora da vila e vai competir com a lareira da sala.",
+   "comoCorrigir": "Poste e base com THREE.LatheGeometry (perfil de ferro fundido: base larga, anel, fuste afinando, colarinho), travessa de barra redonda; lanterna de 6 faces com caixilho fino chanfrado, vidro levemente fosco cuja emissão é calculada no shader pela distância a um ponto de chama interno (núcleo âmbar, queda suave até as bordas escuras, sujeira nos cantos) em vez de mancha pintada por face; tampa metálica com neve esculpida e pendente. Baixar a emissão uns 40% e segurar a cor em âmbar (perto de #E8BC65 depois do tone mapping, sem miolo branco). Considerar pôr o lampião mais ao fundo do jardim (D de 9 a 11) para ficar menor que as janelas da igreja em tela."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Luz quente sobre a neve: luar.ts, linha 'luz += uQuente * quente * ...' e uQuente = (1.0, 0.5, 0.14); fotos 13, 14-mergulho-jardim.png, 32-recorte-pe-da-janela.png, almofadas do pinheiro em 05",
+   "problema": "A luz quente é somada por cima do luar azul: nas intensidades médias o resultado é lilás/rosa (neve do jardim junto da janela, almofadas do pinheiro, poças da vila puxando para pêssego-rosado). A referência mostra âmbar-dourado sobre azul, nunca rosa. A poça da 'luz da sala' é uma mancha amorfa grande que tinge o pé inteiro da janela.",
+   "comoCorrigir": "Fazer a poça substituir parte do luar em vez de somar: 'float q = clamp(quente * 1.3, 0.0, 1.0); luz = mix(luz, luz * 0.3, q) + uQuente * quente;' e aquecer uQuente para cerca de (1.0, 0.62, 0.2), de modo que o verde fique sempre acima do azul dentro da poça. A luz da janela da sala: desenhar no mapa de luz um trapézio com as sombras das travessas (não elipse), expor 'uLuzSala' (cor e intensidade) como uniforme atualizável a cada quadro para a composição copiar a tremulação da lareira, e baixar o padrão de luzDaSala para cerca de 0,4."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Profundidade em camadas e valores: quadro inteiro (01, 03, 09); uNevoa/uVale em luar.ts, criarNeblina",
+   "problema": "Jardim, vila, crista de coníferas e morros têm praticamente o mesmo brilho e o mesmo contraste; a bruma de vale quase não aparece e a neve do pé da janela é a área mais clara do quadro. A referência separa os planos por valor (primeiro plano escuro em silhueta, meio iluminado, fundo dissolvendo em azul). Aqui a leitura tende a 'maquete bem iluminada' em vez de pintura de fundo.",
+   "comoCorrigir": "Subir a névoa de vale (uVale.z de 0.55 para cerca de 0.85) e a densidade por distância além de 45 m (uNevoa.y de 0.0105 para 0.016), para a crista e o bosque caírem um degrau de contraste atrás da igreja. Acrescentar 2 ou 3 lençóis de bruma (planos horizontais largos com alpha de fbm rolando devagar, depthWrite false, esmaecendo pela altura) entre jardim e vila e entre vila e crista. Escurecer o primeiro plano: pintar no canal B do mapa de luz uma faixa de oclusão nos primeiros 3 m junto da parede e reduzir a luz da sala, deixando a encosta da vila como a área mais clara."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Janelas acesas e poças (atlas de vidros em particulas.ts, pocaJanela em terreno.ts); fotos 01, 03, 07, 26-diorama-de-fora.png",
+   "problema": "Praticamente todas as janelas estão acesas, no mesmo tom e com o miolo estourado em branco-creme; somando cerca de 25 janelas, 6 lampiões e duas manchas ovais por janela, o âmbar deixa de ser 'pouco e precioso' e vira padrão repetido (vistas de cima, as poças parecem pétalas iguais). Há poças sem janela visível que as justifique.",
+   "comoCorrigir": "Sortear por semente 35 a 45% das janelas apagadas (vidro escuro refletindo o céu), e nas acesas variar intensidade (0,35 a 1) e matiz (mel, âmbar, uma ou duas com cortina esverdeada ou avermelhada) por atributo de vértice; limitar a emissão para o miolo ficar âmbar depois do ACES. Uma poça só por janela acesa, em trapézio que nasce no pé da parede, com força proporcional à da janela; nenhuma poça para janela apagada ou de fachada voltada para o fundo."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Árvore nua grande do jardim e árvores nuas da vila (construirArvoreNua em arvores.ts); fotos 06-tele-arvore-nua.png, 19-treno-tele-lua.png, 25",
+   "problema": "Os galhos são polilinhas de 3 a 6 segmentos com quinas visíveis, seções de 3 a 5 lados achatadas e a neve pousada parece tábua reta com arestas. A árvore ocupa todo o terço superior direito do quadro, então as quinas aparecem mesmo na lente do jogo.",
+   "comoCorrigir": "Passar os pontos de cada ramo por THREE.CatmullRomCurve3 (tipo 'centripetal') e reamostrar com 2 a 3 vezes mais segmentos nos níveis 0 a 2; mínimo de 8 lados no tronco e 6 nos níveis 1 e 2; engrossar a base de cada filho (colarinho) para a junção não parecer espetada. Neve: seção de 5 pontos em arco em vez de 3, espessura por fbm com falhas (trechos sem neve) e pontas arredondadas. Os raminhos do último nível podem virar cartões com alpha (um punhado de raminhos pintados em canvas), que dão a renda fina da referência por menos triângulos."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Níveis de qualidade: fotos 21-baixa.png e 22-media.png; aplicarQualidade em index.ts",
+   "problema": "No médio e no baixo (não só no baixo, como diz o relato) a árvore grande é outra árvore: um galho grosso cruza a torre da igreja e aponta para a lua, estragando o ponto focal. Além disso setQuality em tempo de execução só reduz: 'coniferas.count = Math.min(coniferas.count, ...)' nunca volta a subir, e grade do terreno, galhos e sombras ficam presos ao nível da construção (há até um 'void nivelAtual' para calar o compilador).",
+   "comoCorrigir": "Dar a cada ramo o seu próprio gerador (semente = hash da semente do pai com o índice do filho) e consumir sempre a mesma quantidade de números; o nível de detalhe muda só lados e segmentos e corta o último nível, nunca a forma. Guardar o total de coníferas colocadas e fazer 'coniferas.count = Math.min(total, alvo)'. Documentar o que só muda na construção ou reconstruir essas malhas em setQuality. Fotografar os três níveis lado a lado e conferir a mesma silhueta."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Trenó (treno.ts); fotos 16-treno-0_2.png, 17-treno-0_5.png, 18-treno-0_8.png, 28-treno-tele-lua.png",
+   "problema": "Legibilidade fraca: o conjunto mede cerca de 200 px de largura com a janela enchendo o quadro inteiro (na sala real a janela será bem menor); em 0,2 está escondido atrás dos galhos da árvore nua, em 0,8 já está saindo pela borda esquerda, e fora do disco da lua a silhueta azul-média some contra o céu. De perto, as renas têm tronco trapezoidal com um segundo corpo deslocado que parece erro e pernas de palito; o rastro é mais branco que dourado.",
+   "comoCorrigir": "Aumentar 1,6 a 1,8 vezes (comprimento perto de 9 * k) e redesenhar o arco para que de 0,15 a 0,85 fique no céu limpo à esquerda da árvore (azimute de cerca de -1 a -20, elevação um pouco maior). Silhueta mais escura que o céu (perto de 0.01, 0.02, 0.06) com um filete de contraluz do lado da lua. Redesenhar o perfil das renas com THREE.Shape em curvas (peito, barriga, garupa, pescoço arqueado), pernas em dois segmentos articulados; a rena de trás de cada par deslocada uns 12% e um tom mais clara (atmosfera), não do mesmo valor. Rastro em dourado (1.0, 0.75, 0.35), pontos maiores junto do trenó decaindo em tamanho e alfa."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Fumaça das chaminés (criarFumaca em particulas.ts); fotos 01, 03-tele-vila.png, 04-tele-igreja.png",
+   "problema": "Lê-se como fitas translúcidas estriadas (parece jato de água ou véu), todas com a mesma inclinação e em quase todas as chaminés: uma dúzia de colunas iguais sobre a vila é ruído, não atmosfera.",
+   "comoCorrigir": "Fita mais larga que abre com a altura, alpha por fbm de duas oitavas rolando para cima (sem estrias verticais), bordas dissolvidas com smoothstep largo em u, alfa máximo perto de 0,25, cor puxando para o azul do céu com um toque quente só na base. Acender a fumaça em 40% das chaminés (sorteio por semente) e variar inclinação e altura por coluna."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Aurora (ceu.ts); fotos 20-aurora-t2.png, t6, t10",
+   "problema": "Entre 2, 6 e 10 segundos a faixa é praticamente a mesma imagem: serena, mas parada demais para um evento especial; a borda inferior é uma diagonal reta e dura.",
+   "comoCorrigir": "Rolar o ruído das cortinas em duas camadas com velocidades diferentes (algo como 0,03 e 0,05 rad/s em azimute) e ondular a borda inferior com fbm em função do tempo; alargar o smoothstep da borda de baixo."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Ponte de pedra no vale; foto 30-recorte-ponte.png (recorte de 14) e 13",
+   "problema": "Da janela a ponte aparece como dois arcos brancos soltos em pé, sem tabuleiro legível: lê-se como lápides ou argolas, não como ponte.",
+   "comoCorrigir": "Mostrar o tabuleiro arqueado com o vão escuro por baixo, guarda-corpos baixos de pedra acompanhando o tabuleiro com cordão de neve, e girar a ponte uns 20 a 30 graus em relação ao eixo de visão para o arco aparecer de perfil."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Halos de janelas e lampiões (criarHalos, pontos aditivos); fotos 07-tele-casas-direita.png, 25-tele-ponte.png",
+   "problema": "O halo de janelas parcialmente tapadas é desenhado por cima de troncos em primeiro plano, que parecem translúcidos ou queimados pela luz.",
+   "comoCorrigir": "Manter depthTest ligado nos halos e encolher o ponto para caber na janela, deixando o transbordo por conta do bloom do palco no nível alto; ou atenuar o halo pela fração visível (ler a profundidade em 3 ou 4 amostras ao redor do centro, se houver textura de profundidade disponível)."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Filetes laranja atrás de telhados; fotos 03-tele-vila.png (x 430 a 520, y 455) e 04-tele-igreja.png (x 760 a 820, y 1518)",
+   "problema": "Um traço laranja fino aparece na crista do terreno logo atrás de um telhado: é poça de luz de uma fachada de trás vazando para onde não há janela visível.",
+   "comoCorrigir": "Não pintar poça para fachadas voltadas para o fundo (produto escalar entre a normal da fachada e a direção para a janela da sala menor que zero) e encurtar o alcance da poça quando o terreno sobe atrás da casa."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Cerca do jardim e mourões; fotos 08-tele-cerca-jardim.png, 09, 14",
+   "problema": "As tampas de neve dos mourões são cogumelos lisos iguais (leitura de brinquedo) e as ripas são preto chapado, sem a textura de tábua nem filete de luar.",
+   "comoCorrigir": "Tampas como domos baixos irregulares, tombados para o lado do vento, deslocados por ruído e com tamanhos diferentes; um filete de contraluz azul nas arestas das ripas voltadas para a lua (termo de borda no shader) e um pouco de neve grudada na face de cima das travessas."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Riacho congelado (construirRiacho em terreno.ts); foto 26-diorama-de-fora.png",
+   "problema": "É uma fita azul chapada de segmentos retos com borda dura contra a neve; pouco visível pela janela frontal, mas aparece em câmeras mais altas.",
+   "comoCorrigir": "Amostrar a cada 0,4 m em vez de 1,25 m, borda com alpha em degradê (neve invadindo o gelo por ruído) e reflexo do céu e da lua por fresnel em vez de cor fixa."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Recursos: public/assets/texturas/bark_willow (diff 153 kB + nor 346 kB) e clay_plaster",
+   "problema": "A casca das árvores aparece quase sempre como silhueta preto-azulada e o reboco mal se distingue no escuro: cerca de 600 kB de textura quase sem efeito visível. Dentro do orçamento, mas é o único desperdício evidente.",
+   "comoCorrigir": "Ou clarear um pouco a casca do lado da lua para a textura trabalhar (contraluz no tronco grande), ou trocar o mapa de normais por um de 512 px. Se algum arquivo for removido, apagar também a linha em CREDITOS.md (clay_plaster e stone_wall_04 também são usados pela janela: não apagar esses)."
+  }
+ ]
+}

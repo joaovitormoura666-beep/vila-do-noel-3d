@@ -1,0 +1,11 @@
+# Redirecionamentos da Cloudflare Pages (https://developers.cloudflare.com/pages/configuration/redirects/)
+#
+# /painel já abre o painel.html sozinho: a Cloudflare serve qualquer "arquivo.html" também
+# sem o ".html" (e redireciona /painel.html para /painel). Por isso NÃO existe aqui uma
+# regra "/painel -> /painel.html": ela entraria em conflito com isso e a página ficaria
+# redirecionando em círculo.
+
+# Demonstração da sala 3D
+/sala        /demo-sala   301
+/sala/       /demo-sala   301
+/painel/     /painel      301

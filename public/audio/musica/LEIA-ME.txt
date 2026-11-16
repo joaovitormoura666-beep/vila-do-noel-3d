@@ -1,0 +1,13 @@
+Música de fundo (opcional)
+==========================
+
+Por padrão o jogo toca uma caixinha de música original, gerada por código,
+sem nenhuma questão de direitos autorais.
+
+Para usar outra música, salve o arquivo aqui com o nome:
+
+  fundo.mp3
+
+Use somente músicas com licença que permita transmissões ao vivo
+(domínio público, Creative Commons adequada ou licença comprada).
+Depois de adicionar o arquivo, rode "npm start" de novo.

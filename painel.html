@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vila do Noel Live — Painel de controle</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎅</text></svg>" />
+  </head>
+  <body>
+    <header class="topo">
+      <div>
+        <h1>Vila do Noel <span>Painel de controle</span></h1>
+        <p class="sub">Esta página é só sua: ela não aparece na transmissão.</p>
+      </div>
+      <div class="selos">
+        <a class="btn dourado" id="abrir-jogo" href="/" target="vila-do-noel-jogo">Abrir a tela do jogo</a>
+        <span class="selo" id="selo-servidor">Servidor: conectando…</span>
+        <span class="selo" id="selo-jogo">Tela do jogo: —</span>
+        <span class="selo neutro" id="selo-fps">FPS: —</span>
+        <button class="btn" id="btn-sair" type="button" hidden title="Esquece a senha neste computador">Sair</button>
+      </div>
+    </header>
+    <p class="aviso erro" id="aviso-servidor" role="alert" hidden></p>
+    <p class="aviso" id="aviso-telas" hidden>
+      Há mais de uma tela do jogo aberta, e cada uma mostra a fila por conta própria. Durante a live, deixe aberta só a que está sendo transmitida.
+    </p>
+
+    <main class="grade">
+      <section class="cartao largo" id="cartao-obs" hidden>
+        <h2>Endereço para o OBS</h2>
+        <p class="dica">
+          No OBS: Fontes → + → Navegador, cole este endereço, largura 1080 e altura 1920, e marque "Controlar áudio via OBS".
+          <span id="obs-chave-info" hidden>O endereço leva a chave da tela (<b>tela=</b>): sem ela a tela não conecta. A chave só mostra o jogo, não abre este painel; se você trocar a senha do painel, copie o endereço de novo.</span>
+        </p>
+        <div class="linha obs-linha">
+          <input type="text" id="obs-url" readonly aria-label="Endereço para o OBS" />
+          <button class="btn" id="obs-copiar" type="button">Copiar</button>
+        </div>
+      </section>
+
+      <section class="cartao destaque">
+        <h2>Simulador de eventos</h2>
+        <p class="dica">Teste o jogo sem estar ao vivo. Cada botão cria participantes fictícios.</p>
+        <button class="btn grande primario" data-sim="rosa">🌹 Simular rosa</button>
+        <div class="linha">
+          <button class="btn" data-sim="comando">💬 Comando <b>!presente</b></button>
+          <button class="btn" data-sim="presente_aleatorio">🎁 Outro presente</button>
+          <button class="btn" data-sim="seguir">➕ Novo seguidor</button>
+        </div>
+        <h3>Teste de carga</h3>
+        <div class="linha">
+          <button class="btn dourado" data-sim="rosa" data-count="10">+10 pessoas</button>
+          <button class="btn dourado" data-sim="rosa" data-count="50">+50 pessoas</button>
+          <button class="btn dourado" data-sim="rosa" data-count="100">+100 pessoas</button>
+        </div>
+        <h3>Casos especiais</h3>
+        <div class="linha">
+          <button class="btn" data-sim="duplicado" title="O mesmo evento chega duas vezes: só um deve entrar">♻️ Evento duplicado</button>
+          <button class="btn" data-sim="mesmo_usuario" title="A última pessoa manda outro presente: deve ser ignorada se ainda estiver na fila">👤 Mesma pessoa de novo</button>
+        </div>
+      </section>
+
+      <section class="cartao">
+        <h2>Fila agora</h2>
+        <div class="numeros">
+          <div><strong id="n-fila">0</strong><span>na fila</span></div>
+          <div><strong id="n-espera">0</strong><span>fora da tela</span></div>
+          <div><strong id="n-atendidos">0</strong><span>atendidos</span></div>
+        </div>
+        <p class="atual">Com o Noel: <b id="atual">ninguém</b></p>
+        <div class="linha">
+          <button class="btn" id="btn-pausa">⏸ Pausar atendimentos</button>
+          <button class="btn" data-cmd="skip">⏭ Pular atual</button>
+          <button class="btn perigo" id="btn-limpar">🧹 Limpar fila</button>
+        </div>
+      </section>
+
+      <section class="cartao">
+        <h2>Ritmo</h2>
+        <label class="campo">Velocidade da entrega <output id="o-speed"></output>
+          <input type="range" id="speed" min="0.5" max="3" step="0.1" />
+        </label>
+        <label class="chave"><input type="checkbox" id="autoSpeed" /> Acelerar sozinho quando a fila crescer</label>
+        <p class="dica">Em uso agora: <b id="v-atual">—</b></p>
+        <label class="campo">Personagens visíveis na fila <output id="o-maxVisible"></output>
+          <input type="range" id="maxVisible" min="3" max="12" step="1" />
+        </label>
+        <div class="duas">
+          <label class="campo">Tamanho máximo da fila
+            <input type="number" id="maxQueue" min="5" max="1000" step="5" />
+          </label>
+          <label class="campo">Espera para participar de novo (s)
+            <input type="number" id="rejoinCooldownSec" min="0" max="3600" step="5" />
+          </label>
+        </div>
+        <label class="campo">Fala do Noel com a fila vazia a cada (s) — 0 desliga
+          <input type="number" id="idleHintSec" min="0" max="600" step="5" />
+        </label>
+      </section>
+
+      <section class="cartao">
+        <h2>Áudio</h2>
+        <label class="campo">Volume geral <output id="o-vol-master"></output>
+          <input type="range" id="vol-master" min="0" max="1" step="0.01" />
+        </label>
+        <label class="campo">Música <output id="o-vol-music"></output>
+          <input type="range" id="vol-music" min="0" max="1" step="0.01" />
+        </label>
+        <label class="campo">Efeitos <output id="o-vol-sfx"></output>
+          <input type="range" id="vol-sfx" min="0" max="1" step="0.01" />
+        </label>
+        <label class="campo">Voz do Noel <output id="o-vol-voice"></output>
+          <input type="range" id="vol-voice" min="0" max="1" step="0.01" />
+        </label>
+        <label class="chave"><input type="checkbox" id="voiceEnabled" /> Voz do Papai Noel ligada</label>
+        <label class="chave"><input type="checkbox" id="speakNames" /> Falar o nome do participante</label>
+        <button class="btn" data-cmd="test_voice">🔊 Testar voz</button>
+        <p class="dica" id="voz-info">Abra a tela do jogo para ver a situação do som.</p>
+      </section>
+
+      <section class="cartao">
+        <h2>Como as pessoas entram</h2>
+        <label class="chave"><input type="checkbox" id="giftJoins" /> Qualquer presente coloca na fila</label>
+        <label class="chave"><input type="checkbox" id="followJoins" /> Seguir o perfil coloca na fila</label>
+        <label class="campo">Comandos gratuitos do chat (separados por vírgula)
+          <input type="text" id="chatCommands" maxlength="120" />
+        </label>
+        <label class="campo">Texto de instrução na tela
+          <input type="text" id="hintText" maxlength="90" />
+        </label>
+      </section>
+
+      <section class="cartao">
+        <h2>Desempenho</h2>
+        <label class="campo">Qualidade dos efeitos
+          <select id="quality">
+            <option value="auto">Automática (recomendado)</option>
+            <option value="alta">Alta</option>
+            <option value="media">Média</option>
+            <option value="baixa">Baixa</option>
+          </select>
+        </label>
+        <p class="dica">Em uso agora: <b id="q-atual">—</b></p>
+        <label class="chave"><input type="checkbox" id="showFps" /> Mostrar FPS na tela do jogo (só para testes)</label>
+        <div class="linha">
+          <button class="btn" data-cmd="reload">🔄 Recarregar tela do jogo</button>
+          <button class="btn" id="btn-padrao">↩ Restaurar padrões</button>
+        </div>
+      </section>
+
+      <section class="cartao largo">
+        <h2>Registro</h2>
+        <ul id="log" class="log"></ul>
+      </section>
+    </main>
+
+    <div class="entrada" id="entrada" hidden>
+      <form class="cartao entrada-caixa" id="entrada-form" autocomplete="on">
+        <h2>Entrar no painel</h2>
+        <p class="dica">
+          Digite a senha do painel. É o valor de <b>TOKEN_ADMIN</b> no arquivo <b>.env</b> do servidor.
+          Ela fica guardada só neste navegador, neste computador.
+        </p>
+        <p class="dica">Servidor: <b id="entrada-servidor">—</b></p>
+        <!-- campo de usuário escondido: ajuda o gerenciador de senhas do navegador -->
+        <input type="text" name="username" value="painel" autocomplete="username" hidden />
+        <label class="campo">Senha do painel
+          <input type="password" id="entrada-token" name="password" autocomplete="current-password" required maxlength="500" />
+        </label>
+        <p class="entrada-erro" id="entrada-erro" role="alert" hidden></p>
+        <button class="btn grande primario" type="submit">Entrar</button>
+      </form>
+    </div>
+
+    <script type="module" src="/src/admin/main.ts"></script>
+  </body>
+</html>

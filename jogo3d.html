@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Vila do Noel 3D</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎄</text></svg>" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0d1626;
+        overflow: hidden;
+      }
+      #carregando {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #e8bc65;
+        font: 600 20px 'Fredoka', 'Segoe UI', system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="palco"></div>
+    <div id="carregando">Carregando a Vila do Noel…</div>
+    <div id="som" hidden>🔊 Clique na tela para ativar o som</div>
+    <div id="demo" class="j3d-barra" role="group" aria-label="Controles da demonstração" hidden>
+      <button class="botao principal" type="button" data-acao="um">🌹 Entrar 1</button>
+      <button class="botao" type="button" data-acao="dez">Entrar 10</button>
+      <button class="botao" type="button" data-acao="TREE_SPARKLE">🎄 Árvore brilhando</button>
+      <button class="botao" type="button" data-acao="FIREPLACE_MAGIC">🔥 Lareira mágica</button>
+      <button class="botao" type="button" data-acao="SLEIGH_PASS">🛷 Trenó</button>
+      <button class="botao" type="button" data-acao="MAGICAL_NIGHT">✨ Noite mágica</button>
+      <button class="botao discreto" type="button" data-acao="som" aria-pressed="false"><span class="icone" aria-hidden="true">🔇</span><span class="rotulo">Som</span></button>
+    </div>
+    <script type="module" src="/src/jogo3d/main.ts"></script>
+  </body>
+</html>

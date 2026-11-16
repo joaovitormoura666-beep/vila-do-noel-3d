@@ -1,0 +1,46 @@
+# Caddy: proxy reverso com HTTPS automático (certificado gratuito do Let's Encrypt).
+# Ele recebe as conexões da internet em https:// e wss:// (portas 443 e 80)
+# e repassa para o back-end, que escuta só em 127.0.0.1:3000.
+#
+# 1. Troque "api.seu-dominio.com.br" pelo subdomínio que aponta para a VM.
+# 2. Copie para /etc/caddy/Caddyfile e rode:  sudo systemctl reload caddy
+# O WebSocket (wss://.../ws) passa pelo reverse_proxy sem configuração extra.
+#
+# Recomendado: na Cloudflare (DNS do domínio), deixe este subdomínio com a nuvem CINZA
+# ("somente DNS"). Com a nuvem LARANJA, as conexões chegam dos servidores da Cloudflare e
+# o back-end passaria a ver o endereço deles em vez do visitante (os limites por endereço
+# e o bloqueio por senha errada juntariam pessoas diferentes). Se mesmo assim quiser a
+# nuvem laranja, tire o "#" do bloco abaixo (as faixas oficiais estão em
+# https://www.cloudflare.com/ips/ e mudam de vez em quando).
+#
+# {
+# 	servers {
+# 		trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+# 		client_ip_headers CF-Connecting-IP
+# 	}
+# }
+
+api.seu-dominio.com.br {
+	encode gzip
+
+	# só as rotas do jogo; o resto responde 404
+	@vila path /ws /api/*
+	handle @vila {
+		reverse_proxy 127.0.0.1:3000 {
+			# o endereço real do visitante (com a nuvem laranja configurada acima, vem do
+			# CF-Connecting-IP); substitui qualquer valor inventado por quem conectou
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+	handle {
+		respond "Vila do Noel Live: back-end. Verificação em /api/saude" 404
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# Sem a diretiva "log" o Caddy não grava cada acesso: assim a senha de eventos de um
+	# "?token=" (TOKEN_EVENTOS, usado por ferramentas de lives) não vai parar em arquivo nenhum.
+}

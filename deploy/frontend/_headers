@@ -1,0 +1,54 @@
+# Cabeçalhos da Cloudflare Pages (https://developers.cloudflare.com/pages/configuration/headers/)
+# Gerado por "npm run pacote:frontend" a partir de deploy/frontend/_headers.
+
+# Segurança para todas as páginas. A política de conteúdo (CSP) deixa o jogo carregar só
+# arquivos deste site e conversar com o back-end em qualquer endereço https/wss (o endereço
+# real fica no config.json, que pode mudar sem publicar de novo). localhost/127.0.0.1 em http
+# ficam liberados só para testar o front publicado com um back-end rodando no próprio PC
+# (?servidor=http://localhost:3000). blob: e data: em connect-src: o carregador dos modelos 3D
+# (GLTFLoader) lê as texturas embutidas nos arquivos .glb por endereços blob:.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; font-src 'self' data:; connect-src 'self' blob: data: https: wss: http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'
+
+# Páginas e configuração: sempre a versão mais nova (sem cache).
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/demo-sala
+  Cache-Control: no-cache
+/demo-sala.html
+  Cache-Control: no-cache
+/config.json
+  Cache-Control: no-cache
+/audio/lista.json
+  Cache-Control: no-cache
+
+# O painel não pode ser aberto dentro de outro site (proteção contra cliques falsos).
+/painel
+  Cache-Control: no-cache
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+/painel.html
+  Cache-Control: no-cache
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+
+# Código compilado: o nome tem um código (hash) que muda a cada versão, então pode ficar
+# guardado por um ano.
+/app/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Arte 3D (public/assets): cache longo de 7 dias. Os nomes NÃO mudam a cada versão: ao
+# trocar um arquivo, dê um nome novo a ele (ou espere a semana passar).
+/assets/*
+  Cache-Control: public, max-age=604800
+
+# Áudios opcionais (public/audio).
+/audio/musica/*
+  Cache-Control: public, max-age=86400
+/audio/voz/*
+  Cache-Control: public, max-age=86400

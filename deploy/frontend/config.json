@@ -1,0 +1,4 @@
+{
+  "backend": "https://api.seu-dominio.com.br",
+  "_ajuda": "Troque o endereço acima pelo do seu back-end (a VM), começando com https://. Deixe vazio (\"\") só se as páginas forem servidas pelo próprio back-end."
+}

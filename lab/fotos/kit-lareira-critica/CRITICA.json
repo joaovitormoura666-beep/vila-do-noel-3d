@@ -1,0 +1,129 @@
+{
+ "nota": 6,
+ "veredito": "A alvenaria já é de cenário de animação: pedra com relevo de verdade, cunhais alternados, soleira de lajes lascadas, silhueta torta, sombras longas no piso e tremor orgânico. De longe (inteira.png, frontal.png) a peça é imponente e tem atmosfera. Mas o coração da peça, que é para onde o olho vai, ainda é de jogo: o fogo é uma cortina de cartões borrados e translúcidos atrás das toras, com um retângulo de chama de topo reto visível em todos os instantes; as toras são cilindros lisos com casca vermelha, sem carvão nem brasa, atravessando umas às outras; as brasas são batatas lisas sobre um plano. Somam-se o reflexo estourado em branco no piso (mais claro e maior que o próprio fogo), uma folha de argamassa sem espessura flutuando sob o arco, os ombros em placas facetadas e todos os materiais com rugosidade acima de 1 (fosco de argila, sem brilho de quina nem cera na viga). Resposta à pergunta do dono: a pedra parece cinema; a boca da lareira (fogo, lenha, brasa) ainda parece primitiva com textura e efeito de jogo. Não aprovo como está; com os seis primeiros itens corrigidos chega a 8. Números conferidos: cerca de 81 mil triângulos e 11 chamadas batem com o que medi (quadro do estúdio 73 chamadas; 245,8 mil triângulos sem oclusão e 491,6 mil com, porque as sombras e a passada de normais redesenham tudo); texturas somam 3,79 MB (relato dizia 3,74), dentro do orçamento; créditos presentes; console sem erros em 36 fotos (lab/fotos/kit-lareira-critica/).",
+ "pareceCinema": false,
+ "manter": [
+  "Alvenaria em duas camadas (pele deslocada na CPU com o mapa de altura real + pedras modeladas uma a uma): relevo e juntas de verdade, contorno irregular contra a parede, nada de caixa com textura (pedra-rasante.png, tres-quartos-esq.png).",
+  "Cunhais alternados comprido/curto e a deformação 'entortar' comum a pele e blocos: a quina não é uma régua.",
+  "Soleira de lajes com bordas lascadas, juntas desencontradas e leque de fuligem na frente da boca (chao.png, lado-largo.png): é a parte mais convincente da peça.",
+  "Face da viga com veio, rachaduras e manchas reais (console.png): a textura rough_wood está na escala certa na altura.",
+  "Tremor da luz: três ruídos somados, variação de cerca de 25% entre instantes e suave dentro de 0,4 s (medido em tremor-t2/2_2/2_4/8/14), luz e chama no mesmo pulso, fonte passeando para as sombras respirarem.",
+  "Sombras longas do banco e da poltrona pelo piso e a poça de luz quente derramando da boca (chao.png).",
+  "Fuligem por cor de vértice subindo da boca e sob a viga; escurecimento do pé.",
+  "Cães de ferro torneados, discretos e no lugar certo.",
+  "API da peça: forca, setMagia suavizado sem salto, bocaDoFogo, console, luz com sombra configurada e castShadow decidido pela composição; criarFogo reutilizável sem luzes.",
+  "Determinismo: tudo é função de t, disposição com gerador com semente; nenhuma partícula com estado.",
+  "Orçamento contido: cerca de 81 mil triângulos, 11 chamadas, 3 luzes, 3,79 MB de texturas; níveis médio e baixo mantêm a silhueta e a leitura (inteira-media.png, inteira-baixa.png).",
+  "Contenção geral: sem enfeite, sem néon; faíscas raras; a magia fica restrita à área da boca e do console."
+ ],
+ "problemas": [
+  {
+   "gravidade": "critico",
+   "onde": "Chamas (fogo.ts, CHAMA_FRAG e disposição das línguas) - fotos boca-t2, boca-t2_2, boca-t2_4, boca-t8, boca-t14, boca-media",
+   "problema": "O fogo lê como mancha laranja desfocada colada atrás das toras, não como fogo de filme. É translúcido no corpo (dá para ler as fiadas de tijolo através da chama), não tem miolo quente claro, as bordas são todas moles, o desenho é de baixa frequência (bolhas largas, sem línguas finas) e a base é cortada em linha reta pela tora de cima: a chama não nasce da lenha nem a abraça, só há uma labareda solta na frente, que parece adesivo. Entre os instantes a forma muda, mas sempre como cortina plana.",
+   "comoCorrigir": "1) Corpo opaco e borda nítida: trocar smoothstep(0.0, 0.3, f) por smoothstep(0.06, 0.16, f) e o alfa final d*0.82 por mix(0.75, 1.0, smoothstep(0.3, 0.8, h))*d, deixando mole só a ponta (multiplicar a largura da transição por y). 2) Mais detalhe: terceira oitava com deformação de domínio (q*3.4 + (n2-0.5)*1.2) e esticar o ruído na vertical (y*1.1 em vez de y*2.0) para formar línguas compridas. 3) Miolo quente: último degrau da rampa até vec3(1.0, 0.86, 0.55)*1.9 só na base (h>1.1), para o bloom pegar apenas ali. 4) Ancorar na lenha: criarFogo passa a receber os eixos das toras (lista de segmentos) e cria 2 ou 3 cartões por tora cuja base acompanha o dorso da tora (atributo com y do dorso) mais labaredas curtas nascendo nas frestas entre as toras da frente; hoje só 5 de 15 cartões ficam à frente de z=0. 5) Volume: nas línguas soltas usar dois quads cruzados a 60 graus em vez de um só virado para a câmera. 6) Pontas escurecendo para vermelho-fuligem com erosão mais agressiva (pow(y, 1.6) para pow(y, 1.2))."
+  },
+  {
+   "gravidade": "critico",
+   "onde": "Chamas contra o fundo inclinado da câmara (fogo.ts linhas das chamadas cortina/media; index.ts zFundo) - boca-t14 em x 815 a 975, y 690; boca-media em x 655 a 712, y 955; visível até em frontal.png e no nível baixo (boca-baixa.png)",
+   "problema": "Há um retângulo de chama com topo reto e lados verticais em todos os instantes. Confirmei que é cartão de chama (some com semchamas=1): o cartão media(0.24, -0.3, 0.02, 1.0) fica em z = zFogo - 0.30 = 0,125 m e o fundo de tijolo se inclina para a frente acima de yInclina (0,73 m), cortando o cartão em y = 0,79 m, exatamente onde aparece a linha. Pela mesma conta, os cartões em z -0.33 e -0.36 (0,095 e 0,065 m) ficam inteiros atrás do fundo (zb = 0,10): 2 de 15 nunca aparecem (1 de 8 no nível baixo), e a cortina principal é cortada em y = 0,90 m.",
+   "comoCorrigir": "Nenhum cartão pode passar do fundo: em criarLareira, informar ao fogo o plano do fundo (nova opção, por exemplo fundo: { z0, yInclina, inclinacao }) e em criarFogo limitar z >= zFundo(topo do cartão) + 0,03; ou, mais simples, começar a inclinação do fundo acima do topo das chamas (yInclina = ySoleira + 0.13 + altura do fogo + 0.1) e limitar o recuo dos cartões a -0.26*k. Trocar os dois cartões perdidos por labaredas na frente das toras. Como garantia, apagar a chama perto de sólidos por conta analítica no shader: uniform com o plano do fundo e alfa *= smoothstep(0.0, 0.06, distância ao plano)."
+  },
+  {
+   "gravidade": "critico",
+   "onde": "Toras (lenha.ts criarTora; index.ts lista toras) - boca-t2, brasas.png, arco-intradorso.png",
+   "problema": "As toras são a primitiva geométrica da peça: cilindros lisos de seção redonda com casca enrolada, vermelho-lagosta saturado sob a luz laranja, sem carvão visível, sem brasa visível do lado da câmera (o 'queimado' só escurece as faces viradas para o centro do fogo, que ficam escondidas), pontas em corte limpo com topo de anéis com contorno preto e cunha branca (cara de adesivo) e a tora atravessada passa por dentro das outras duas. Nada ali está queimando.",
+   "comoCorrigir": "1) Lenha rachada em vez de tora redonda: seção de 5 a 7 pontos (meia-lua e quarto) extrudada ao longo de um eixo levemente torto com 10 a 12 anéis; casca só no arco externo, as duas faces de racha com a textura rough_wood (fibra ao comprido) e normais duras na aresta da racha; um ou dois tocos de galho. 2) Carvão que a câmera vê: queimado = função da distância às chamas e da altura (dorso e extremidades), não do produto com a normal; padrão 'pele de jacaré' com ruído celular (blocos de carvão quase pretos, rugosidade 0.6) e emissivo laranja só nas frestas (smoothstep estreito do Worley), pulsando com o uBrasa que já existe. 3) Tirar o vermelho: color do matCasca para um cinza-castanho ('#8c7c6e') e reduzir a saturação do mapa no shader (mix(vec3(luma), cor, 0.55)). 4) Apoiar em vez de atravessar: calcular a altura de cada tora pelo contato (y = y da de baixo + r1 + r2 no cruzamento) e inclinar a de cima sobre as duas. 5) Topos: chanfro irregular na borda, rachas radiais em geometria rasa, sem anel preto; os dois topos mais próximos do fogo carbonizados."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Leito de cinzas e brasas (lenha.ts criarLeitoDeBrasas, acenderBrasas) - brasas.png, boca-t2",
+   "problema": "Os carvões são icosaedros amassados e alisados: leem como batatas ou seixos com manchas claras, flutuando sobre um plano de cinza liso, castanho e uniforme, que termina em linha reta na frente (y 1260 em brasas.png). O emissivo é em manchas largas e moles, não em veios; não há a camada de brasa viva sob a grade que justifica a luz.",
+   "comoCorrigir": "Carvões angulosos: reaproveitar blocoIrregular com raio 0.004, quebra 1 e cantos de hexaedro bem irregulares (2 a 6 cm), 60 a 90 peças em um InstancedMesh (uma chamada) com normais por face nas quebras; superfície quase preta e emissivo só em frestas finas (ruído celular: 1.0 - smoothstep(0.02, 0.08, F2-F1)), com as peças do miolo quase todas acesas e cobertas de cinza clara por cima (mistura por normal.y). Cinza: monte com relevo de 3 a 4 cm (fbm em duas escalas), cor cinza-claro frio ('#9a948e') com rugosidade 1, borda irregular que se desfaz sobre a laje (cor de vértice indo para a cor da laje e a malha descendo 5 mm abaixo dela na borda). Uma camada de brasa viva contínua sob as barras (plano deslocado com o mesmo shader), que é o que deve aparecer aceso pela fresta entre os cães."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Argamassa do intradorso do arco (index.ts, laço 'argamassa por trás das juntas', segundo quad de cada segmento) - arco-intradorso.png, tampo-viga.png, boca-t2 (faixa em y 230 a 340)",
+   "problema": "A faixa de argamassa em R + 0,005 é uma folha sem espessura que fica abaixo das aduelas: aparece como uma tira clara e lisa, com textura esticada que parece compensado, flutuando sob as pedras com frestas por onde se vê o tijolo e um contorno em zigue-zague. Por estar virada para o fogo é a superfície mais clara da boca.",
+   "comoCorrigir": "Remover o quad do intradorso em R + 0.005. Recuar a argamassa para trás do arredondamento das aduelas (raio R + 0.03 + 0.012), com 28 segmentos em vez de 14, cor de fuligem quase preta ([0.05, 0.045, 0.04]) passando por sujar(), e UV em escala real (comprimento de arco / ladrilho). Fechar as frestas: reduzir o raio das faces laterais das aduelas (raio 0.012 nas juntas, 0.03 só na face da frente) para a junta ficar com 1 a 1,5 cm em vez de um V de 6 cm, e deixar a face de baixo da aduela ser o intradorso."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Reflexo da luz principal no piso (index.ts luz: SpotLight 5.2, decay 0.7, em y = ySoleira + 0.64) - inteira.png y 1640 a 1880, piso-reflexo-clip.png, inteira-mini.png",
+   "problema": "O reflexo do spot no piso encerado estoura em quase branco (pixel máximo 255,245,218 em todos os instantes) e forma uma coluna maior e mais clara que o próprio fogo: a hierarquia do quadro inverte, o olho cai no chão. Na miniatura é a mancha dominante. As pernas do banco viram tiras acesas com halo (chao.png). É brilho artificial.",
+   "comoCorrigir": "Baixar a intensidade perto e manter longe: intensidade 5.2 para cerca de 3.4 e decay 0.7 para 1.1 a 1.3, compensando o alcance com distance 26 e, na composição, com o mapa de ambiente. Recuar e baixar a fonte (z = P - 0.25, y = ySoleira + 0.4) para a borda da soleira cortar o campo próximo e o brilho especular cair sobre a laje fosca, não sobre a cera. Estreitar o cone (angle 1.2 para 0.95, penumbra 1). Documentar para a composição: rugosidade mínima do piso 0.45 na faixa de 2 m à frente da boca (mapa de rugosidade ou cor de vértice no remendo do piso). Conferir com o limiar do bloom em 1.0: nada no piso pode passar dele."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Luz rebatida abaixo do piso (index.ts luzSoleira: PointLight 6.8, alcance 9, decay 0.7, sem sombra) - inteira.png, frontal.png, lado-largo.png, chamine-alto.png, tampo-viga.png",
+   "problema": "A luz pontual sob o piso ilumina o peito da chaminé por baixo, quase igual dos 2 aos 6 m (cara de lanterna sob o queixo, sem queda com a altura), atravessa a viga (a viga não faz sombra na pedra logo acima dela) e ilumina a parede atrás como se a lareira fosse transparente: não existe a faixa de sombra da chaminé na parede ao lado, então o volume parece recortado e colado (lado-largo.png). Em compensação, o tampo da viga e as laterais ficam em preto chapado, contra a regra de sombras marrom-avermelhadas.",
+   "comoCorrigir": "Trocar a PointLight por uma SpotLight sem sombra em (0, 0.25, P + 2.0) apontada para (0, aC + 1.3, P), angle 0.5, penumbra 1, decay 1.6 e intensidade ajustada: ilumina só a frente da pedra, cai de verdade com a altura e não acende a parede ao lado. Pintar a sombra da viga na cor de vértice (em sujar: multiplicar por 0.5 a 0.6 na faixa y de aC a aC + 0.45 na frente, com borda irregular por fbm). Para o contato com a parede, entregar junto da peça uma sombra pintada (malha fina com gradiente escuro, mistura multiplicativa, 25 cm de cada lado e no encontro com o teto) ou deixar isso explícito para a composição. Preenchimento marrom-avermelhado mínimo no tampo e nas laterais vem da composição (HemisphereLight ou ambiente): declarar na API que a peça não se sustenta sem ele."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Ombros da chaminé e mísulas da viga (index.ts laço dos cunhais entre yOmbro0 e yOmbro1; frenteInclinada dos cachorros) - ombro.png, viga-ponta.png, frontal.png y 640 a 800",
+   "problema": "Na faixa dos ombros os cunhais são cisalhados pela variação rápida de meiaLargura(y) e viram lajes finas, planas e facetadas deitadas na rampa, com arestas vivas de polígono e textura borrada: leem como placas de papelão escuras, a parte mais 'malha crua' da silhueta. As mísulas da viga, com a frente inclinada por deslocar dois cantos, viraram lâminas em losango de aresta afiada (viga-ponta.png).",
+   "comoCorrigir": "Ombros em fiadas em degrau: entre yOmbro0 e yOmbro1, 3 ou 4 fiadas horizontais de 0,20 a 0,28 m de altura, cada uma recuando 0,12 a 0,16 m (caixaCantos reto, sem cisalhar), com uma pedra de capa mais larga por cima de cada degrau (espessura mínima 0,09 m, raio 0.03, maxSeg 12, relevo 0.014). A pele por baixo segue a rampa lisa. Mísulas: dois blocos de perfil em quarto de círculo (o de baixo mais estreito e mais fundo, o de cima com 0,18 m de altura), raio 0.04, sem deslocar cantos mais de 0,08 m; conferir a foto de lado."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Pedras talhadas: aduelas, pés-direitos e cunhais (pedra.ts blocoIrregular; index.ts raio 0.028 a 0.034) - boca-media.png, arco-intradorso.png, frontal.png",
+   "problema": "Todas as pedras talhadas têm o mesmo arredondamento e a face estufada: leem como pães ou almofadas, e as aduelas, todas do mesmo tamanho e com o topo em cúpula, parecem dedos ou dentes. A chave quase não se destaca. É o traço que mais puxa a alvenaria para 'asset estilizado de jogo' em vez de pedra lavrada. Em close há textura esticada nas faces laterais dos blocos (pedra-rasante.png, x 350 a 450, y 1500 a 1900).",
+   "comoCorrigir": "Raio por aresta variável (0.006 a 0.03, sorteado por aresta, e não um raio único por bloco). Faces mais planas: reduzir o termo 'largo' (2.4 para 1.0) e trocar por marcas de cinzel direcionais (ruído em cristas ao longo de um eixo, amplitude 3 a 4 mm). Lascas como planos de corte: em 30% dos cantos, cortar por um plano inclinado (projetar os vértices do canto no plano) em vez do fbm mole. Normais: manter suaves dentro da face e duras onde o ângulo passa de 50 graus (não somar na chave de vértice entre faces quando o raio for pequeno). Aduelas com larguras bem diferentes (pesos de 0.7 a 1.4), chave 12 a 15 cm mais alta e 4 cm mais saliente. UV das faces laterais: usar a escala da própria face depois da deformação (comprimento real das arestas), não dz e dy médios."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Rugosidade dos materiais (index.ts: matPele 1.15, matBlocos 1.6, matLajes 1.12, matViga 1.45) - pedra-rasante.png, console.png, viga-ponta.png",
+   "problema": "Todos os materiais principais têm roughness acima de 1, que multiplica o mapa e satura em 1: o mapa de rugosidade das texturas reais é anulado e tudo fica igualmente fosco, com cara de argila. Não há brilho fino em quina gasta, nem fuligem acetinada, nem cera na viga (o guia pede madeira encerada com brilho baixo e variado). É metade do motivo de a pedra parecer monocromática e sem riqueza sob a luz rasante.",
+   "comoCorrigir": "roughness 1.0 na pele e nas lajes, 0.9 nos blocos, 0.78 na viga, todos com o roughnessMap do ARM. Variar pela cor de vértice com onBeforeCompile: depois de roughnessmap_fragment, roughnessFactor *= mix(0.72, 1.0, máscara), onde a máscara vem de um atributo extra (aresta gasta = 0, fundo de junta = 1) que blocoIrregular e vigaLavrada já sabem calcular (variável 'borda' e 'naQuina'). Na viga, faixa de toque mais polida na aresta da frente do tampo."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Viga do console (lenha.ts vigaLavrada; index.ts vigaAlt 0.25, vigaEsp 0.46) - frontal.png y 1010 a 1090, inteira.png, viga-ponta.png",
+   "problema": "A viga tem 0,25 m de altura para 3,56 m de comprimento sob uma massa de pedra de 6 m: lê como prateleira, não como viga lavrada que segura a chaminé. A mesma marca de talho se repete a cada 0,95 m ao longo da face (em frontal.png em x 300, 585 e 868): repetição evidente da textura. Os topos são corte de caixa, sem rachas de secagem nem fibra de topo, e as facetas do enxó (4,5 mm) não aparecem em nenhuma foto.",
+   "comoCorrigir": "Altura 0.32 a 0.36 e espessura 0.5 (mantendo o tampo em alturaConsole). UV ao comprido: (u0 * L) / 0.95 para escala de 2,2 a 2,6 m com deslocamento diferente por face, e quebrar a repetição com cor de vértice mais forte (mancha 0.8 a 1.2 em escala de 0,6 m) e um nó ou fenda modelada. Facetas do enxó com 10 a 14 mm e normais menos suavizadas para pegarem a luz rasante. Topos: chanfro irregular de 2 a 4 cm, duas ou três rachas radiais em geometria e textura de topo (criarTexturaAneis adaptada, sem contorno de casca)."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Proporção da boca e tamanho do fogo (index.ts bocaL = Math.min(1.56, L * 0.49), yImposta, alturaConsole padrão 1.7) - inteira.png, inteira-mini.png",
+   "problema": "A boca tem 1,56 m por 0,89 m em um corpo de 3,2 m por 6 m, e o fogo ocupa cerca de 2% do quadro: a imponência vem só da chaminé. Ao lado de um Noel de 2,2 m o console fica na altura do peito dele e a boca parece de casa pequena. Na miniatura o fogo é um ponto e o reflexo no piso é que domina.",
+   "comoCorrigir": "Tirar o teto fixo de 1,56 m: bocaL = L * 0.58 (1,85 m para L = 3,2) e subir o padrão de alturaConsole para 1.95, com a chave do arco perto de 1,25 m. Escalar o fogo junto (largura = compTora + 0.1 já acompanha; altura até 1,0 m; compTora sem o limite de 0.98). Fotografar com fantasmas=1 na composição para conferir a escala contra o Noel."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Efeito FIREPLACE_MAGIC (fogo.ts: 'ouro' no CHAMA_FRAG, MAGIA_VERT/FRAG) - magia-t2, magia-t3, magia-t4, magia-boca.png",
+   "problema": "Contido no espaço, mas pouco mágico. A chama, ao dourar, vira um amarelo-mostarda pálido e translúcido, sem miolo (parece fumaça amarela), e o topo é cortado seco pelo arco. As partículas são bolinhas redondas todas da mesma cor e de tamanho parecido, e o rastro lê como colar de contas (4 pontos separados): 680 pontos de purpurina, justamente o que o guia proíbe. O retângulo de chama continua visível durante o efeito.",
+   "comoCorrigir": "Chama: em vez de misturar tudo para um ouro médio, manter a rampa e empurrar só o miolo para branco-dourado (vec3(1.0, 0.9, 0.6)*2.0) e as bordas para âmbar saturado; não reduzir lum (tirar o 1.0 - 0.12*uMagia). Limitar a altura por um uniform com a altura do arco e apagar suave nos últimos 10 cm em vez de crescer 20% até bater na pedra. Partículas: 60 a 80 cabeças, tamanhos em lei de potência (a maioria com 6 a 10 mm, poucas com 25 mm), rastro como risco contínuo: InstancedMesh de quads esticados ao longo da velocidade (calcular p(a) e p(a - 0.02) no vertex shader e extrudar entre os dois), cor variando de âmbar a branco-quente, cintilação mais lenta. O que vende a magia é a luz: subir um pouco a luz da câmara e a rebatida em dourado na entrada do efeito (pico de 15% com decaimento), sem mexer no piso."
+  },
+  {
+   "gravidade": "importante",
+   "onde": "Custo de sombras e desperdício (index.ts função malha: castShadow true em pele, pedras, soleira e viga; luz.shadow.camera.far 26; angle 1.2) - números das fotos inteira.png e inteira-sem-ao.png",
+   "problema": "Os cerca de 73 mil triângulos do corpo da lareira são redesenhados em cada mapa de sombra, e o corpo está atrás da própria luz do fogo (nada dele projeta sombra útil nesse mapa). No estúdio medi 245,8 mil triângulos por quadro sem oclusão e 491,6 mil com (a passada de normais repete as sombras). Na sala final, com o luar, a lareira custará perto de 4 vezes os 81 mil declarados. Além disso: 2 cartões de chama nunca aparecem, a pele usa passo de 4 cm até os 6 m onde quase não há luz, e o cone de 1.2 rad faz o mapa de sombra cobrir 137 graus.",
+   "comoCorrigir": "castShadow = false nas malhas detalhadas (pele, pedras-talhadas, viga, soleira) e uma malha substituta invisível para sombra: perfil extrudado da lareira com cerca de 60 triângulos, material com colorWrite: false e depthWrite: false, castShadow = true (serve ao luar e ao fogo). shadow.camera.far 26 para 14; angle 0.95 (ou shadow.focus 0.8) para dobrar a densidade do mapa. Pele com passo 0.04 só até yOmbro1 e 0.07 acima (economiza perto de 12 mil triângulos). O normal 2k de rock_wall_10 (1,23 MB) pode cair para 1k, já que o relevo grande está na malha. Avisar quem cuida do palco que a passada de oclusão redesenha os mapas de sombra (shadowMap.autoUpdate)."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Cor geral da pedra e da luz (index.ts tomPedra, COR_FOGO '#ff9442', luzSoleira '#ff8a3a') - inteira.png, chamine-alto.png",
+   "problema": "A peça inteira é um único matiz laranja-avermelhado: a variação de tom entre pedras (mais ou menos 4%) some sob a luz saturada, e a pele entre os cunhais fica bem mais escura e chapada que os blocos, com juntas em preto puro. Falta a riqueza de pedra de verdade (umas mais frias e cinzentas, outras ocres, cal nas juntas).",
+   "comoCorrigir": "tomPedra com valor de 0.6 a 1.15 e desvio de matiz de mais ou menos 0.12, com 1 em cada 6 pedras claramente mais fria; clarear a pele (color '#f2e6d4') e levantar o fundo das juntas (junta de 0.62 para 0.78, com tom de cal levemente mais claro e frio em vez de preto). Luz principal um pouco menos saturada ('#ffab66'), deixando o vermelho para a luz da câmara: assim a cor local das pedras aparece."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Câmara de tijolo (index.ts corCamara, matCamara) - boca-sem-chamas.png, boca-t8",
+   "problema": "O tijolo do fundo é novo, regular e limpo, com juntas claras e bem desenhadas e pouca fuligem: lê como parede de tijolo aparente, não como fornalha usada. Não há o preto pesado no alto e nos cantos nem a mancha calcinada clara atrás do fogo.",
+   "comoCorrigir": "Em corCamara, base 0.62 para 0.38, alto chegando a 0.03, e a mancha limpa mais clara e amarelada (somar [0.5, 0.42, 0.3]*limpo) só atrás do fogo; roughness 0.8 no alto (fuligem acetinada) por máscara de vértice; deslocar e girar as UV entre fundo e laterais; normalScale 1.4 para 1.0 no alto, onde a fuligem enche as juntas."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Faíscas (fogo.ts FAISCA_VERT/FRAG) - boca-t14 (pontos em 130,585 e 712,460), boca-t2_2, tres-quartos-esq.png",
+   "problema": "As faíscas aparecem como pontinhos redondos brancos parados no ar, com cara de poeira na lente ou pixel estourado, não de fagulha subindo. O multiplicador 2.6 mais o bloom leva a cor a branco.",
+   "comoCorrigir": "Riscar ao longo da velocidade (mesma técnica do rastro: quad instanciado entre p(k) e p(k - 0.03)), cor vec3(1.0, 0.45, 0.08)*1.5 esfriando para vermelho no fim da vida, tamanho de 3 a 6 mm, e soltar em rajadas curtas ligadas ao pulso do tremor em vez de períodos fixos."
+  },
+  {
+   "gravidade": "detalhe",
+   "onde": "Nível baixo (Stage sem pós; fogo.ts tonemapping no fragmento) - inteira-baixa.png, boca-baixa.png",
+   "problema": "No nível baixo as chamas ficam mais saturadas e duras (o tone mapping é aplicado no próprio fragmento antes da mistura, em vez de no fim), restam três línguas grandes, o leito de cinzas vira um plano claro e o banco perde a sombra e flutua. A peça continua legível, mas o fogo cai mais um degrau para 'jogo'.",
+   "comoCorrigir": "No nível baixo, reduzir lum das chamas em cerca de 25% e trocar a ordem de corte para manter as labaredas da frente (reordenar a lista de línguas: uma cortina, duas médias, cinco da frente). Escurecer o leito de cinzas pela cor de vértice, sem depender da oclusão. A sombra de contato dos móveis é assunto da composição (decalque escuro sob os móveis quando não há sombra)."
+  }
+ ]
+}

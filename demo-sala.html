@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Sala do Noel 3D</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --fundo: #0b111d;
+        --painel: #121b2c;
+        --borda: #2a3a57;
+        --texto: #f7f4ef;
+        --fraco: #a9b6cc;
+        --dourado: #e8bc65;
+        --vermelho: #b62835;
+        --verde: #174d3b;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: var(--fundo);
+        color: var(--texto);
+        font: 15px/1.35 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+      }
+      .pagina {
+        box-sizing: border-box;
+        height: 100%;
+        min-height: 480px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-block: 10px;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+      }
+      #palco {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #05080f;
+      }
+      .barra {
+        flex: none;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        max-width: 720px;
+        width: 100%;
+        margin-inline: auto;
+      }
+      .botao {
+        appearance: none;
+        min-width: 0;
+        padding: 9px 6px;
+        border-radius: 12px;
+        border: 1px solid var(--borda);
+        background: var(--painel);
+        color: var(--texto);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        transition: border-color 0.15s, background 0.15s, transform 0.1s;
+      }
+      .botao:active {
+        transform: scale(0.97);
+      }
+      .botao:focus-visible {
+        outline: 2px solid var(--dourado);
+        outline-offset: 2px;
+      }
+      .botao .icone {
+        font-size: 20px;
+        line-height: 1.1;
+      }
+      .botao .rotulo {
+        font-size: 12.5px;
+        text-align: center;
+        text-wrap: balance;
+      }
+      .botao.ativo {
+        border-color: var(--dourado);
+        background: #2a2412;
+      }
+      .botao.espera {
+        border-style: dashed;
+        border-color: var(--fraco);
+      }
+      .rodape {
+        flex: none;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        max-width: 720px;
+        width: 100%;
+        margin-inline: auto;
+        color: var(--fraco);
+        font-size: 12.5px;
+        min-height: 1.4em;
+      }
+      .rodape span {
+        min-width: 0;
+      }
+      @media (max-width: 420px) {
+        .barra {
+          gap: 6px;
+        }
+        .botao {
+          padding: 8px 3px;
+        }
+        .botao .rotulo {
+          font-size: 11.5px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pagina">
+      <div id="palco" aria-label="Cena 3D da sala natalina"></div>
+      <div class="barra" role="group" aria-label="Efeitos do cenário">
+        <button class="botao" data-efeito="TREE_SPARKLE"><span class="icone" aria-hidden="true">🎄</span><span class="rotulo">Árvore cintilante</span></button>
+        <button class="botao" data-efeito="FIREPLACE_MAGIC"><span class="icone" aria-hidden="true">🔥</span><span class="rotulo">Lareira mágica</span></button>
+        <button class="botao" data-efeito="SLEIGH_PASS"><span class="icone" aria-hidden="true">🛷</span><span class="rotulo">Trenó no céu</span></button>
+        <button class="botao" data-efeito="MAGICAL_NIGHT"><span class="icone" aria-hidden="true">🌌</span><span class="rotulo">Noite mágica</span></button>
+      </div>
+      <div class="rodape">
+        <span id="estado" role="status">Toque em um efeito para testar.</span>
+        <span>qualidade <span id="nivel">alta</span> · <span id="fps">–</span> fps</span>
+      </div>
+    </div>
+    <script type="module" src="/src/demo/sala.ts"></script>
+  </body>
+</html>

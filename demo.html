@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Vila do Noel Live</title>
+    <meta name="claude:viewport-fit-sides" content="cover" />
+    <style>
+      /* Layout: palco 9:16 centralizado ocupando a altura livre, com a barra de botões logo abaixo. */
+      :root {
+        --noite-funda: #0d1626;
+        --noite: #17253b;
+        --ceu: #1d3152;
+        --neve: #f7f4ef;
+        --neve-suave: #a9b8d2;
+        --vermelho: #b62835;
+        --vermelho-vivo: #cf3b49;
+        --ouro: #e8bc65;
+        --fonte: 'Fredoka', 'Segoe UI', system-ui, sans-serif;
+        color-scheme: dark;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        overflow: hidden;
+        background: radial-gradient(120% 70% at 50% 0%, var(--ceu) 0%, var(--noite-funda) 72%) var(--noite-funda);
+        color: var(--neve);
+        font-family: var(--fonte);
+      }
+      .palco {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+      }
+      #jogo {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+      }
+      #jogo canvas {
+        display: block;
+      }
+      .rodape {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding-block: 10px;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+      }
+      .barra {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+      }
+      .botao {
+        min-height: 44px;
+        padding: 8px 18px;
+        border: 2px solid var(--ouro);
+        border-radius: 999px;
+        background: var(--noite);
+        color: var(--neve);
+        font: 600 16px/1.1 var(--fonte);
+        cursor: pointer;
+        touch-action: manipulation;
+        position: relative;
+      }
+      .botao:hover {
+        background: var(--ceu);
+      }
+      .botao:active {
+        transform: translateY(1px);
+      }
+      .botao:focus-visible {
+        outline: 3px solid var(--neve);
+        outline-offset: 2px;
+      }
+      .botao.principal {
+        background: var(--vermelho);
+      }
+      .botao.principal:hover {
+        background: var(--vermelho-vivo);
+      }
+      .botao.discreto {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border-color: var(--neve-suave);
+        font-weight: 500;
+      }
+      /* Em telas estreitas os três botões cabem em uma linha: o do som vira só o ícone. */
+      @media (max-width: 480px) {
+        .barra {
+          flex-wrap: nowrap;
+          gap: 6px;
+        }
+        .botao {
+          padding: 8px 13px;
+          font-size: 15px;
+          white-space: nowrap;
+        }
+        .botao.discreto {
+          min-width: 46px;
+          padding-inline: 10px;
+        }
+        .botao .rotulo {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+          white-space: nowrap;
+        }
+      }
+      @media (max-width: 370px) {
+        .botao {
+          padding: 8px 10px;
+          font-size: 14px;
+        }
+      }
+      .nota {
+        margin: 0;
+        max-width: 60ch;
+        color: var(--neve-suave);
+        font-size: 13px;
+        line-height: 1.35;
+        text-align: center;
+        text-wrap: balance;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="palco">
+      <div id="jogo" role="img" aria-label="Vila do Noel: cenário animado com a fila de visitantes e o Papai Noel entregando presentes"></div>
+    </div>
+    <div class="rodape">
+      <div class="barra" id="controles" role="group" aria-label="Controles da demonstração">
+        <button class="botao principal" type="button" id="b-rosa" data-acao="rosa">🌹 Simular rosa</button>
+        <button class="botao" type="button" id="b-dez" data-acao="dez">+10 pessoas</button>
+        <button class="botao discreto" type="button" id="b-som" data-acao="som" aria-pressed="false"><span class="icone" aria-hidden="true">🔇</span><span class="rotulo">Ativar som</span></button>
+      </div>
+      <p class="nota">Demonstração: visitantes fictícios entram sozinhos. Na live, entra quem mandar um presente ou digitar !presente no chat.</p>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

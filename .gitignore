@@ -1,0 +1,27 @@
+node_modules/
+dist/
+dist-demo/
+data/configuracoes.json
+*.log
+assets-src/
+pacotes/
+.env
+data/configuracoes.json.tmp
+
+# builds e saídas geradas
+dist-*/
+.env.*
+!.env.example
+!.env.demo
+data/
+
+# fotos de trabalho do laboratório (pesadas; ficam só no computador).
+# As anotações (NOTAS.md, CRITICA.json) continuam no repositório.
+lab/fotos/**/*.png
+lab/fotos/**/*.jpg
+lab/fotos/**/*.mp4
+lab/acervo/*.png
+
+# referências de estilo de obras de terceiros: só para consulta local, não publicar
+lab/referencia-clima.png
+lab/referencia-gnomo.png

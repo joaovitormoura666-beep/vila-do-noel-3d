@@ -1,0 +1,46 @@
+# Serviço do systemd: mantém o back-end da Vila do Noel rodando na VM,
+# inicia sozinho quando a VM liga e reinicia se o programa cair.
+#
+# Instalação (veja o LEIA-ME.md, passo 7):
+#   sudo cp vila-do-noel.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now vila-do-noel
+#
+# Ver se está rodando:   sudo systemctl status vila-do-noel
+# Ver o registro:        sudo journalctl -u vila-do-noel -f
+# Reiniciar (após mudar o .env):  sudo systemctl restart vila-do-noel
+
+[Unit]
+Description=Vila do Noel Live - back-end
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vila
+Group=vila
+WorkingDirectory=/opt/vila-do-noel
+# As configurações vêm do arquivo /opt/vila-do-noel/.env (lido pelo próprio servidor).
+ExecStart=/usr/bin/node /opt/vila-do-noel/servidor.mjs
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+# Proteções: o serviço não vira administrador, só escreve na pasta de dados
+# e não enxerga as pastas pessoais nem o resto do sistema.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+# Única pasta onde o serviço pode gravar (DATA_DIR=data no .env). Se mudar DATA_DIR,
+# mude esta linha também.
+ReadWritePaths=/opt/vila-do-noel/data
+
+[Install]
+WantedBy=multi-user.target

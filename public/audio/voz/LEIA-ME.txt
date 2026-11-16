@@ -1,0 +1,12 @@
+Frases pré-gravadas do Papai Noel (opcional)
+============================================
+
+Coloque aqui arquivos .mp3 com o nome do identificador da frase, por exemplo:
+
+  principal.mp3   ->  "Vamos ver qual é o seu presente!"
+  ola-1.mp3       ->  "Ho, ho, ho! Olá!"            (grave sem o nome da pessoa)
+  espera-1.mp3    ->  "Quem será o próximo a ganhar um presente?"
+
+A lista completa de identificadores está em src/santa/phrases.ts.
+Quando existe um arquivo para a frase, ele é usado no lugar da voz sintetizada.
+Depois de adicionar arquivos, rode "npm start" de novo.

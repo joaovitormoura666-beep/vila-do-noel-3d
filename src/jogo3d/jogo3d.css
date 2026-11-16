@@ -1,0 +1,402 @@
+/* Jogo 3D: página, barra da demonstração e interface da live (em pixels de projeto 1080x1920, na camada do palco). */
+:root {
+  --vermelho: #b62835;
+  --vermelho-escuro: #8c1d28;
+  --verde: #174d3b;
+  --ouro: #e8bc65;
+  --ouro-claro: #f7dc9b;
+  --neve: #f7f4ef;
+  --noite: #17253b;
+  --noite-funda: #0d1626;
+  --fonte: 'Fredoka', 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--noite-funda);
+  overflow: hidden;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--fonte);
+}
+#palco {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+body.obs,
+body.obs * {
+  cursor: none;
+}
+
+/* aviso para liberar o som (fora do quadro da live) */
+#som {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  background: rgba(13, 22, 38, 0.86);
+  color: var(--neve);
+  font: 600 15px var(--fonte);
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--ouro);
+  z-index: 10;
+}
+body.com-demo #som {
+  bottom: 84px;
+}
+body.manual #som,
+body.manual #demo,
+body.obs #som,
+body.obs #demo {
+  display: none !important;
+}
+
+/* barra da demonstração */
+.j3d-barra {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px max(16px, env(safe-area-inset-left, 0px)) max(10px, env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(#0d1626, #0a111e);
+  border-top: 1px solid rgba(232, 188, 101, 0.35);
+}
+.j3d-barra[hidden] {
+  display: none;
+}
+.j3d-barra .botao {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 2px solid var(--ouro);
+  border-radius: 999px;
+  background: var(--noite);
+  color: var(--neve);
+  font: 600 15px/1.1 var(--fonte);
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+.j3d-barra .botao:hover {
+  background: #1d3152;
+}
+.j3d-barra .botao:focus-visible {
+  outline: 3px solid var(--neve);
+  outline-offset: 2px;
+}
+.j3d-barra .botao.principal {
+  background: var(--vermelho);
+}
+.j3d-barra .botao.discreto {
+  border-color: #a9b8d2;
+  font-weight: 500;
+}
+@media (max-width: 520px) {
+  .j3d-barra {
+    gap: 6px;
+  }
+  .j3d-barra .botao {
+    padding: 7px 11px;
+    font-size: 13px;
+  }
+}
+
+/* ------------------------------------------------------------ interface da live */
+.j3d-hud {
+  position: absolute;
+  inset: 0;
+  font-family: var(--fonte);
+  color: var(--neve);
+  pointer-events: none;
+}
+
+.j3d-titulo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 198px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 108px;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: #f3cf85;
+  -webkit-text-stroke: 14px #8e1c28;
+  paint-order: stroke fill;
+  text-shadow: 0 8px 0 rgba(9, 16, 30, 0.45), 0 0 40px rgba(232, 188, 101, 0.25);
+}
+
+.j3d-dica,
+.j3d-contador {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  border-radius: 999px;
+  transition: opacity 0.35s ease;
+}
+.j3d-dica {
+  top: 324px;
+  padding: 8px 28px;
+  background: rgba(13, 22, 38, 0.62);
+  font-weight: 500;
+  font-size: 31px;
+}
+.j3d-dica.longa {
+  font-size: 27px;
+}
+.j3d-contador {
+  top: 384px;
+  padding: 5px 26px;
+  background: var(--verde);
+  border: 3px solid var(--ouro);
+  color: #f3cf85;
+  font-weight: 600;
+  font-size: 29px;
+}
+.j3d-hud.com-faixa .j3d-dica,
+.j3d-hud.com-faixa .j3d-contador {
+  opacity: 0;
+}
+
+/* faixa da revelação: "Fulano ganhou / Bola de Natal" */
+.j3d-faixa {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 312px;
+  text-align: center;
+  line-height: 1.04;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.j3d-faixa.visivel {
+  opacity: 1;
+  transform: scale(1);
+}
+.j3d-faixa .quem {
+  font-weight: 600;
+  font-size: 40px;
+  color: var(--neve);
+  -webkit-text-stroke: 9px var(--noite);
+  paint-order: stroke fill;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.j3d-faixa .oque {
+  font-weight: 700;
+  font-size: 72px;
+  color: var(--ouro-claro);
+  -webkit-text-stroke: 13px var(--vermelho-escuro);
+  paint-order: stroke fill;
+}
+
+/* etiquetas de nome */
+.j3d-etiquetas {
+  position: absolute;
+  inset: 0;
+}
+.j3d-etiqueta {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 18px 5px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: rgba(13, 22, 38, 0.86);
+  border: 3px solid rgba(232, 188, 101, 0.95);
+  color: var(--neve);
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1;
+  box-shadow: 0 4px 10px rgba(5, 9, 18, 0.4);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  will-change: transform, opacity;
+}
+.j3d-etiqueta.visivel {
+  opacity: 1;
+}
+.j3d-etiqueta.atual {
+  font-size: 34px;
+  border-width: 4px;
+  padding: 6px 22px 6px 7px;
+  background: rgba(122, 22, 32, 0.92);
+}
+.j3d-avatar {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  flex: none;
+  overflow: hidden;
+  border: 2.5px solid var(--neve);
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+}
+.j3d-etiqueta.atual .j3d-avatar {
+  width: 52px;
+  height: 52px;
+}
+.j3d-inicial {
+  color: #fff;
+  font-weight: 700;
+  font-size: 24px;
+}
+.j3d-etiqueta.atual .j3d-inicial {
+  font-size: 29px;
+}
+.j3d-foto {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+.j3d-avatar.com-foto .j3d-foto {
+  opacity: 1;
+}
+.j3d-avatar.com-foto .j3d-inicial {
+  visibility: hidden;
+}
+.j3d-nome {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-bottom: 2px;
+}
+.j3d-etiqueta.atual .j3d-nome {
+  max-width: 330px;
+}
+
+/* selo "+N na fila" */
+.j3d-mais {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 6px 20px;
+  border-radius: 999px;
+  background: rgba(23, 77, 59, 0.92);
+  border: 3px solid var(--ouro);
+  color: #f3cf85;
+  font-weight: 600;
+  font-size: 27px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.j3d-mais.visivel {
+  opacity: 1;
+}
+
+/* balão de fala do Noel */
+.j3d-balao {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  max-width: 620px;
+  padding: 20px 32px 22px;
+  border-radius: 38px;
+  background: var(--neve);
+  color: var(--noite);
+  border: 4px solid var(--ouro);
+  font-weight: 600;
+  font-size: 44px;
+  line-height: 1.14;
+  text-align: center;
+  box-shadow: 0 8px 0 rgba(9, 16, 30, 0.32);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  --cauda: 50%;
+}
+.j3d-balao.curto {
+  white-space: nowrap;
+}
+.j3d-balao.visivel {
+  opacity: 1;
+}
+.j3d-balao::after {
+  content: '';
+  position: absolute;
+  left: var(--cauda);
+  bottom: -22px;
+  width: 30px;
+  height: 30px;
+  background: var(--neve);
+  border-right: 4px solid var(--ouro);
+  border-bottom: 4px solid var(--ouro);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* aviso (fila cheia) */
+.j3d-aviso {
+  position: absolute;
+  left: 50%;
+  top: 470px;
+  transform: translateX(-50%);
+  padding: 14px 30px;
+  border-radius: 26px;
+  background: rgba(13, 22, 38, 0.9);
+  border: 3px solid var(--ouro);
+  font-weight: 600;
+  font-size: 34px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.j3d-aviso.visivel {
+  opacity: 1;
+}
+
+/* operação (nunca no ?obs) */
+.j3d-fps {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #9fe8b0;
+  font: 22px/1.2 ui-monospace, monospace;
+  display: none;
+}
+.j3d-fps.visivel {
+  display: block;
+}
+.j3d-pausado {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(182, 40, 53, 0.92);
+  font-weight: 700;
+  font-size: 26px;
+  display: none;
+}
+.j3d-pausado.visivel {
+  display: block;
+}
+.j3d-hud.obs .j3d-fps {
+  display: none;
+}
+
+/* captura quadro a quadro (?manual=1): sem transições em tempo real (a simulação anda pelo frame(dt)) */
+body.manual .j3d-hud,
+body.manual .j3d-hud * {
+  transition: none !important;
+}
