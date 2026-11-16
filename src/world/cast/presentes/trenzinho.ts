@@ -21,6 +21,8 @@ const TINTA: Acab = [0, 0.55, 0.28, 0];
 
 const RODA = 0.033;
 const RODAS_X = [-0.085, -0.012, 0.062];
+const LATAO_FOSCO: Cor = [COR.ouro[0] * 0.6, COR.ouro[1] * 0.6, COR.ouro[2] * 0.6];
+const ACAB_LATAO_FOSCO: Acab = [1, 0.62, 0, 0];
 const BITOLA = 0.052; // meia distância entre as rodas de um lado e do outro
 const MANIVELA = 0.014;
 
@@ -99,7 +101,7 @@ export const moldarTrenzinho: Moldar = (q) => {
   ] as const) {
     const c = cabine.clone().add(new THREE.Vector3(dx, 0.018, dz));
     caixa(c, sx + (sx > 0.01 ? 0.004 : 0.0006), 0.021, sz + (sz > 0.01 ? 0.004 : 0.0006), 0.2, CREME, TINTA, 8, 6);
-    caixa(c.clone().add(new THREE.Vector3(Math.sign(dx) * 0.0012, 0, Math.sign(dz) * 0.0012)), sx, 0.016, sz, 0.2, [0.015, 0.012, 0.01], [0, 0.35, 0.5, 0], 8, 6);
+    caixa(c.clone().add(new THREE.Vector3(Math.sign(dx) * 0.0012, 0, Math.sign(dz) * 0.0012)), sx, 0.016, sz, 0.2, [0.012, 0.012, 0.014], [0, 0.95, 0, 0], 8, 6); // vidro escuro sem espelhar o foco
   }
   corpo.adicionar({
     nu: div(q, 18, 10),
@@ -132,11 +134,12 @@ export const moldarTrenzinho: Moldar = (q) => {
       if (v < 0.85) return [RODA, 0.0045 - ((v - 0.65) / 0.2) * 0.009];
       return [RODA * (1 - (v - 0.85) / 0.15), -0.0045];
     }, (u, v) => (v > 0.3 && v < 0.5 ? Math.max(0, Math.cos(u * Math.PI * 12)) * 0.0 : 0)),
-    cor: (_u, v) => (v < 0.25 ? COR.ouro : v > 0.6 && v < 0.85 ? PRETO : VERMELHO),
-    acab: (_u, v) => (v < 0.25 ? ACAB.ouroGasto : v > 0.6 && v < 0.85 ? [0, 0.7, 0, 0] : TINTA),
+    // a calota é plana e olha para a câmera: latão escurecido e áspero, para não espelhar o foco
+    cor: (_u, v) => (v < 0.25 ? LATAO_FOSCO : v > 0.6 && v < 0.85 ? PRETO : VERMELHO),
+    acab: (_u, v) => (v < 0.25 ? ACAB_LATAO_FOSCO : v > 0.6 && v < 0.85 ? [0, 0.7, 0, 0] : TINTA),
   });
   // pino da manivela (dourado) na face
-  esfera(roda, new THREE.Vector3(MANIVELA, 0.009, 0), 0.0035, 6, 4, COR.ouro, ACAB.ouro);
+  esfera(roda, new THREE.Vector3(MANIVELA, 0.009, 0), 0.0035, 6, 4, LATAO_FOSCO, ACAB_LATAO_FOSCO);
   const instRodas: THREE.Matrix4[] = [];
   const posRodas: THREE.Vector3[] = [];
   for (const lado of [1, -1])
@@ -154,8 +157,8 @@ export const moldarTrenzinho: Moldar = (q) => {
     nu: 8,
     nv: 6,
     ponto: superelipsoide(new THREE.Vector3(0, 0, 0), comprimento / 2 + 0.006, 0.0035, 0.0018, 0.3),
-    cor: () => [COR.ouro[0] * 0.7, COR.ouro[1] * 0.7, COR.ouro[2] * 0.7],
-    acab: () => ACAB.ouroGasto,
+    cor: () => [COR.ouro[0] * 0.5, COR.ouro[1] * 0.5, COR.ouro[2] * 0.5],
+    acab: () => ACAB_LATAO_FOSCO,
   });
   const instBielas = [1, -1].map((lado) => new THREE.Matrix4().makeTranslation((RODAS_X[0] + RODAS_X[2]) / 2 + MANIVELA, RODA, lado * (BITOLA + 0.0125)));
 

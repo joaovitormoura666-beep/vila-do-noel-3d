@@ -150,10 +150,10 @@ export const buildVillageSet: BuildVillageSet = async (ctx) => {
     camera = { fov: 30, position: [0, 1.32, 0.6 + ids.length * 0.9], target: [0, 1.3, 0] };
   } else if (mostrar === 'caixa') {
     const fechada = catalogo.createGiftBox();
-    fechada.root.position.set(-0.3, 0, 0.2);
+    fechada.root.position.set(-0.27, 0, 0.32);
     fechada.root.rotation.y = 0.5;
     const aberta = catalogo.createGiftBox();
-    aberta.root.position.set(0.32, 0, -0.1);
+    aberta.root.position.set(0.27, 0, -0.32);
     aberta.root.rotation.y = -0.35;
     const abrir = num('abrir', 0.6);
     aberta.lid.position.y += 0.32 * abrir;
@@ -161,9 +161,9 @@ export const buildVillageSet: BuildVillageSet = async (ctx) => {
     aberta.lid.rotation.x = -0.55 * abrir;
     root.add(fechada.root, aberta.root);
     // o presente saindo da caixa aberta
-    const g = porPresente(params.get('presente') ?? 'estrela', 0.32, 0.47, -0.1, 0.36);
-    g.rotation.y = -0.2;
-    camera = { fov: 30, position: [0, 1.25, 3.3], target: [0, 0.3, 0] };
+    const g = porPresente(params.get('presente') ?? 'estrela', 0.27, 0.47, -0.32, 0.36);
+    g.rotation.y = 0.5;
+    camera = { fov: 30, position: [0, 1.5, 4.5], target: [0, 0.36, 0] };
   }
 
   const peca: Peca = {

@@ -138,7 +138,7 @@ export class CamadaNomes {
     this.esfera(this.corpoNoel, this.pontoCorpoNoel, 0.5);
     this.coluna(this.saco, this.pontoSaco, this.alturaSaco, 0.36);
     this.coluna(this.entregaA, this.pontoEntrega, 1.3, 0.36);
-    this.esfera(this.caixa, ent.pontoCaixa, 0.42, ent.rodando && q.caixa.visivel);
+    this.esfera(this.caixa, ent.pontoCaixa, 0.36, ent.rodando && q.caixa.visivel);
     this.esfera(this.presente, ent.pontoRevelacao, 0.55, ent.rodando && q.presente.visivel && !q.presente.naMao);
 
     // balão: preso ao topo do gorro do Noel

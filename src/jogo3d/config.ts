@@ -52,13 +52,13 @@ export const PRESENTE = {
   /** Tamanho nas mãos do visitante. */
   escalaNaMao: 0.46,
   /** Tamanho da caixa (m). */
-  escalaCaixa: 0.5,
+  escalaCaixa: 0.9,
   /** Onde a caixa para: fração do caminho do Noel ao visitante, altura da base (m) e quanto vem para a câmera (m). */
-  caixa: { fracao: 0.56, altura: 0.98, paraCamera: 0.25 },
+  caixa: { fracao: 0.56, altura: 0.8, paraCamera: 0.3 },
   /** Brilho contido: raio do halo (m) e opacidade máxima (fica abaixo do limiar do bloom). */
   halo: { raio: 0.62, opacidade: 0.42 },
   /** Na entrega o visitante olha para o Noel "roubando" esta fração do giro para a câmera (0 = só o Noel). */
-  olharCamera: 0.32,
+  olharCamera: 0.5,
   /** Faíscas na abertura da caixa. */
   faiscas: 26,
 };

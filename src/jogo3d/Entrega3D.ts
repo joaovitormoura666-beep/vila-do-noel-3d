@@ -117,6 +117,8 @@ export class Entrega3D {
   private readonly pCaixa = new THREE.Vector3();
   private readonly pRevela = new THREE.Vector3();
   private readonly paraCamera = new THREE.Vector3();
+  /** Meio da caixa aberta (centro da área proibida das etiquetas). */
+  private readonly pCaixaMeio = new THREE.Vector3();
   // temporários
   private readonly v1 = new THREE.Vector3();
   private readonly v2 = new THREE.Vector3();
@@ -151,6 +153,8 @@ export class Entrega3D {
       .lerp(a.delivery.position, PRESENTE.caixa.fracao)
       .addScaledVector(this.paraCamera, PRESENTE.caixa.paraCamera)
       .setY(PRESENTE.caixa.altura);
+    this.pCaixaMeio.copy(this.pCaixa);
+    this.pCaixaMeio.y += PRESENTE.escalaCaixa * 0.5;
 
     // halo contido em volta do presente (abaixo do limiar do bloom: não estoura)
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaHalo(), color: '#ffffff', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -193,7 +197,7 @@ export class Entrega3D {
 
   /** Onde a caixa para e onde o presente aparece (para as áreas proibidas das etiquetas). */
   get pontoCaixa() {
-    return this.pCaixa;
+    return this.pCaixaMeio;
   }
 
   get pontoRevelacao() {
